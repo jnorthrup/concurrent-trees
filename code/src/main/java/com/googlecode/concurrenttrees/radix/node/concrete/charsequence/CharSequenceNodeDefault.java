@@ -114,6 +114,7 @@ public class CharSequenceNodeDefault implements Node {
         }
         // Atomically update the child node at this index...
         outgoingEdges.set(index, childNode);
+
     }
 
     @Override

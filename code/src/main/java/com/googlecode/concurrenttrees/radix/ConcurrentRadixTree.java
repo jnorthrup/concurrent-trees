@@ -522,7 +522,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         if (value == null) {
             throw new IllegalArgumentException("The value argument was null");
         }
-        acquireWriteLock();
+        //acquireWriteLock();
         try {
             // Note we search the tree here after we have acquired the write lock...
             SearchResult searchResult = searchTree(key);
@@ -629,7 +629,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
             }
         }
         finally {
-            releaseWriteLock();
+            //releaseWriteLock();
         }
     }
 
