@@ -70,6 +70,17 @@ public class ByteArrayNodeLeafNullValue implements Node {
         return Collections.emptyList();
     }
 
+    
+    @Override
+    public boolean attemptMarkChild(Node expectedChildNode, boolean newMark){
+    	return false;
+    }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, boolean expectedMark, boolean newMark) {
+        return false;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

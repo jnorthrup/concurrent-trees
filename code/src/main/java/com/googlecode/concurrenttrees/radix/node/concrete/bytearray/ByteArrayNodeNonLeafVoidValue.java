@@ -100,6 +100,16 @@ public class ByteArrayNodeNonLeafVoidValue implements Node {
     public List<Node> getOutgoingEdges() {
         return new AtomicReferenceArrayListAdapter<Node>(outgoingEdges);
     }
+    
+    @Override
+    public boolean attemptMarkChild(Node expectedChildNode, boolean newMark){
+    	return false;
+    }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, boolean expectedMark, boolean newMark) {
+        return false;
+    }
 
     @Override
     public String toString() {

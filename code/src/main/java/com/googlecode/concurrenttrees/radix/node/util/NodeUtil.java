@@ -18,7 +18,9 @@ package com.googlecode.concurrenttrees.radix.node.util;
 import com.googlecode.concurrenttrees.radix.node.Node;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+
 
 /**
  * Static utility methods useful when implementing {@link com.googlecode.concurrenttrees.radix.node.Node}s.
@@ -64,6 +66,12 @@ public class NodeUtil {
      */
     public static int binarySearchForEdge(AtomicReferenceArray<Node> childNodes, Character edgeFirstCharacter) {
         List<? extends NodeCharacterProvider> childNodesList = new AtomicReferenceArrayListAdapter<Node>(childNodes);
+        NodeCharacterProvider searchKey = new NodeCharacterKey(edgeFirstCharacter);
+        return Collections.binarySearch(childNodesList, searchKey, NODE_COMPARATOR);
+    }
+    
+    public static int binarySearchForEdge(AtomicMarkableReference<Node> []childNodes, Character edgeFirstCharacter) {
+        List<? extends NodeCharacterProvider> childNodesList = new AtomicMarkableReferenceArrayListAdapter<Node>(childNodes);
         NodeCharacterProvider searchKey = new NodeCharacterKey(edgeFirstCharacter);
         return Collections.binarySearch(childNodesList, searchKey, NODE_COMPARATOR);
     }

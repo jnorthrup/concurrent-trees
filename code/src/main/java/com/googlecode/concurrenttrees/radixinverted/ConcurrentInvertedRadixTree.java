@@ -68,7 +68,7 @@ public class ConcurrentInvertedRadixTree<O> implements InvertedRadixTree<O>, Pre
                 public Iterator<KeyValuePair<O>> iterator() {
                     return new LazyIterator<KeyValuePair<O>>() {
 
-                        Node currentNode = root;
+                        Node currentNode = root.get();
                         int charsMatched = 0;
 
                         final int documentLength = input.length();

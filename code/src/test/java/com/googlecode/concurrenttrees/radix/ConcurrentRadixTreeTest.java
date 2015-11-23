@@ -279,7 +279,7 @@ public class ConcurrentRadixTreeTest {
         ConcurrentRadixTree<Integer> tree = new ConcurrentRadixTree<Integer>(getNodeFactory()) {
             @Override
             SearchResult searchTree(CharSequence key) {
-                return new InvalidSearchResult("FOO", root, 4, 4, null, null);
+                return new InvalidSearchResult("FOO", root.get(), 4, 4, null, null);
 
             }
         };
@@ -855,7 +855,7 @@ public class ConcurrentRadixTreeTest {
         root = getNodeFactory().createNode("", null, Arrays.asList(n1), true);
 
         // Overwrite the tree's default root with the one built by hand...
-        tree.root = root;
+        tree.root.set(root);
 
         // Sanity checks to assert that we built tree as expected....
         String expected =

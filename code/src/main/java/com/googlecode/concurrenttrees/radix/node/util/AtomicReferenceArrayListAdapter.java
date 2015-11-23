@@ -36,7 +36,7 @@ public class AtomicReferenceArrayListAdapter<T> extends AbstractList<T> {
 
     @Override
     public T get(int index) {
-        return atomicReferenceArray.get(index);
+        return  atomicReferenceArray.get(index);
     }
 
     @Override
