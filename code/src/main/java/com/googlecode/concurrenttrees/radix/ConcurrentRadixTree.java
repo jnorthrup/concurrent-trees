@@ -540,7 +540,6 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // the existing node with a new node containing the value...
                     // First check if existing node has a value, and if we are allowed to overwrite it.
                     // Return early without overwriting if necessary...
-                	
                 	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
                 	if(!attempt) // if the node is marked, try again
                 		continue;
@@ -588,9 +587,9 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // NOTE: this is the only branch which allows an edge to be added to the root.
                     // (Root node's own edge is "" empty string, so is considered a prefixing edge of every key)
 
-                    // Create a new child node containing the trailing characters...
+                	// Create a new child node containing the trailing characters...
+                	
                 	Node pRoot=root.get();
-
                 	if (searchResult.nodeFound != pRoot) {
                        	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
                     	if(!attempt) // if the node is marked, try again
@@ -636,14 +635,11 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // (4) Re-add N3 to the parent node of NF, effectively replacing NF in the tree
                 	Node pRoot=null;
                 	pRoot = root.get();
-                	
-                	
+                	                	
                 	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
                 	if(!attempt) // if the node is marked, try again
                 		continue;
-
-                	
-                	
+              	
                     CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
                     CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
                     CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
