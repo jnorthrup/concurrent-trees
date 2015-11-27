@@ -20,8 +20,10 @@ import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.examples.shakespeare.util.IOUtil;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 
 import javax.swing.*;
+
 import java.awt.*;
 import java.util.*;
 import java.util.List;
@@ -77,7 +79,7 @@ public class BuildShakespeareWordRadixTree {
     );
 
     public static void main(String[] args) {
-        ConcurrentRadixTree<WordValue> tree = new ConcurrentRadixTree<WordValue>(new DefaultCharArrayNodeFactory());
+        ConcurrentRadixTree<WordValue> tree = new ConcurrentRadixTree<WordValue>(new StampedCharArrayNodeFactory(), 1);
         for (String file : files) {
             Set<String> wordsInFile = IOUtil.loadWordsFromTextFileOnClasspath(file, true); // true = convert to lowercase
             for (String word : wordsInFile) {

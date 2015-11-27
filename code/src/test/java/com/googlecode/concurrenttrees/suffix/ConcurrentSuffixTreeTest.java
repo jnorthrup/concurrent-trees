@@ -18,7 +18,10 @@ package com.googlecode.concurrenttrees.suffix;
 import com.googlecode.concurrenttrees.common.Iterables;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
+
 import org.junit.Test;
 
 import java.util.Collections;
@@ -33,9 +36,9 @@ import static org.junit.Assert.*;
  */
 public class ConcurrentSuffixTreeTest {
 
-    private final NodeFactory nodeFactory = new DefaultCharArrayNodeFactory();
+    private final StampedNodeFactory nodeFactory = new StampedCharArrayNodeFactory();
 
-    protected NodeFactory getNodeFactory() {
+    protected StampedNodeFactory getNodeFactory() {
         return nodeFactory;
     }
 
@@ -455,7 +458,7 @@ public class ConcurrentSuffixTreeTest {
      */
     @SuppressWarnings({"JavaDoc"})
     <O> ConcurrentSuffixTree<O> newConcurrentSuffixTreeForUnitTests() {
-        return new ConcurrentSuffixTree<O>(getNodeFactory()) {
+        return new ConcurrentSuffixTree<O>(getNodeFactory(),1) {
             // Override this method to return a set which has consistent iteration order, for unit testing...
             @Override
             protected Set<String> createSetForOriginalKeys() {

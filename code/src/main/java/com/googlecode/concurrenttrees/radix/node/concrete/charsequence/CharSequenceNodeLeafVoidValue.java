@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.atomic.AtomicStampedReference;
 
 /**
  * Stores only incoming edge as a {@link CharSequence} (a <i>view</i> onto the original key) rather than copying the
@@ -62,6 +63,16 @@ public class CharSequenceNodeLeafVoidValue implements Node {
     public Node getOutgoingEdge(Character edgeFirstCharacter) {
         return null;
     }
+    
+    @Override
+    public Node getOutgoingEdge(Character edgeFirstCharacter, int [] stampHolder) {
+        return null;
+    }
+    
+    @Override
+    public AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter) {
+        return null;
+    }
 
     @Override
     public void updateOutgoingEdge(Node childNode) {
@@ -74,12 +85,17 @@ public class CharSequenceNodeLeafVoidValue implements Node {
     }
     
     @Override
-    public boolean attemptMarkChild(Node expectedChildNode, boolean newMark){
+    public boolean attemptStampChild(Node expectedChildNode, int newStamp){
     	return false;
     }
     
     @Override
-    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, boolean expectedMark, boolean newMark) {
+    public void setStampChild(Node expectedChildNode, int newStamp){
+
+    }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp) {
         return false;
     }
 
@@ -92,5 +108,15 @@ public class CharSequenceNodeLeafVoidValue implements Node {
         sb.append(", edges=[]");
         sb.append("}");
         return sb.toString();
+    }
+    
+    @Override
+	public boolean hasChildStamped() {
+		return false;
+	}
+    
+    @Override
+    public AtomicStampedReference<Node> [] getOutgoingStampedEdges() {
+        return null;
     }
 }

@@ -18,7 +18,7 @@ package com.googlecode.concurrenttrees.examples.usage;
 import com.googlecode.concurrenttrees.common.Iterables;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.RadixTree;
-import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 
 import java.util.List;
 import java.util.Set;
@@ -29,7 +29,7 @@ import java.util.Set;
 public class IterablesUsage {
 
     public static void main(String[] args) {
-        RadixTree<Integer> tree = new ConcurrentRadixTree<Integer>(new DefaultCharArrayNodeFactory());
+        RadixTree<Integer> tree = new ConcurrentRadixTree<Integer>(new StampedCharArrayNodeFactory(),1);
 
         tree.put("TEST", 1);
         tree.put("TOAST", 2);

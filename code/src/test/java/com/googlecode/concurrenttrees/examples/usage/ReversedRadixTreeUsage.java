@@ -18,6 +18,7 @@ package com.googlecode.concurrenttrees.examples.usage;
 import com.googlecode.concurrenttrees.common.Iterables;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 import com.googlecode.concurrenttrees.radixreversed.ConcurrentReversedRadixTree;
 import com.googlecode.concurrenttrees.radixreversed.ReversedRadixTree;
@@ -28,7 +29,7 @@ import com.googlecode.concurrenttrees.radixreversed.ReversedRadixTree;
 public class ReversedRadixTreeUsage {
 
     public static void main(String[] args) {
-        ReversedRadixTree<Integer> tree = new ConcurrentReversedRadixTree<Integer>(new DefaultCharArrayNodeFactory());
+        ReversedRadixTree<Integer> tree = new ConcurrentReversedRadixTree<Integer>(new StampedCharArrayNodeFactory(),1);
 
         tree.put("TEST", 1);
         tree.put("TOAST", 2);

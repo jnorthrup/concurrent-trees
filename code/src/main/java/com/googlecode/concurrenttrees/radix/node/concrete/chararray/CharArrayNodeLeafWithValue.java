@@ -17,9 +17,11 @@ package com.googlecode.concurrenttrees.radix.node.concrete.chararray;
 
 import com.googlecode.concurrenttrees.common.CharSequences;
 import com.googlecode.concurrenttrees.radix.node.Node;
+import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicStampedReference;
 
 /**
  * Stores only incoming edge as a {@code char[]}, and a reference to a value. Does <b>not</b> store any outgoing
@@ -62,6 +64,16 @@ public class CharArrayNodeLeafWithValue implements Node {
     public Node getOutgoingEdge(Character edgeFirstCharacter) {
         return null;
     }
+    
+    @Override
+    public Node getOutgoingEdge(Character edgeFirstCharacter, int [] stampHolder) {
+        return null;
+    }
+    
+    @Override
+    public AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter) {
+        return null;
+    }
 
     @Override
     public void updateOutgoingEdge(Node childNode) {
@@ -75,12 +87,17 @@ public class CharArrayNodeLeafWithValue implements Node {
     
 
     @Override
-    public boolean attemptMarkChild(Node expectedChildNode, boolean newMark){
+    public boolean attemptStampChild(Node expectedChildNode, int newStamp){
     	return false;
     }
     
     @Override
-    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, boolean expectedMark, boolean newMark) {
+    public void setStampChild(Node expectedChildNode, int newStamp){
+
+    }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp) {
         return false;
     }
 
@@ -93,5 +110,15 @@ public class CharArrayNodeLeafWithValue implements Node {
         sb.append(", edges=[]");
         sb.append("}");
         return sb.toString();
+    }
+    
+    @Override
+	public boolean hasChildStamped() {
+		return false;
+	}
+    
+    @Override
+    public AtomicStampedReference<Node> [] getOutgoingStampedEdges() {
+        return null;
     }
 }

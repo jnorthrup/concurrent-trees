@@ -15,8 +15,8 @@
  */
 package com.googlecode.concurrenttrees.radix.node.concrete.bytearray.functional;
 
-import com.googlecode.concurrenttrees.radix.node.NodeFactory;
-import com.googlecode.concurrenttrees.radix.node.concrete.DefaultByteArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedByteArrayNodeFactory;
 import com.googlecode.concurrenttrees.suffix.ConcurrentSuffixTreeTest;
 
 /**
@@ -24,9 +24,9 @@ import com.googlecode.concurrenttrees.suffix.ConcurrentSuffixTreeTest;
  */
 public class ByteArrayNodeFactory_SuffixTreeTest extends ConcurrentSuffixTreeTest {
 
-    private final NodeFactory nodeFactory = new DefaultByteArrayNodeFactory();
+    private final StampedNodeFactory nodeFactory = new StampedByteArrayNodeFactory();
     @Override
-    protected NodeFactory getNodeFactory() {
+    protected StampedNodeFactory getNodeFactory() {
         return nodeFactory;
     }
 }

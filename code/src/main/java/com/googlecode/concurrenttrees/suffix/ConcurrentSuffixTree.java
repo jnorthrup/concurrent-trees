@@ -21,6 +21,7 @@ import com.googlecode.concurrenttrees.common.LazyIterator;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 import java.util.*;
@@ -39,11 +40,11 @@ public class ConcurrentSuffixTree<O> implements SuffixTree<O>, PrettyPrintable {
 
     class ConcurrentSuffixTreeImpl<V> extends ConcurrentRadixTree<V> {
 
-        public ConcurrentSuffixTreeImpl(NodeFactory nodeFactory) {
-            super(nodeFactory);
+        public ConcurrentSuffixTreeImpl(StampedNodeFactory nodeFactory, int numThreads) {
+            super(nodeFactory, numThreads);
         }
 
-        public ConcurrentSuffixTreeImpl(NodeFactory nodeFactory, boolean restrictConcurrency) {
+        public ConcurrentSuffixTreeImpl(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
             super(nodeFactory, restrictConcurrency);
         }
 
@@ -68,8 +69,8 @@ public class ConcurrentSuffixTree<O> implements SuffixTree<O>, PrettyPrintable {
      * on-demand, and which might return node implementations optimized for storing the values supplied to it for
      * the creation of each node
      */
-    public ConcurrentSuffixTree(NodeFactory nodeFactory) {
-        this.radixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory);
+    public ConcurrentSuffixTree(StampedNodeFactory nodeFactory, int numThreads) {
+        this.radixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory, numThreads);
         this.valueMap = new ConcurrentHashMap<String, O>();
     }
 
@@ -84,7 +85,7 @@ public class ConcurrentSuffixTree<O> implements SuffixTree<O>, PrettyPrintable {
      * if false, configures lock-free reads; allows concurrent non-blocking reads, even if writes are being performed
      * by other threads
      */
-    public ConcurrentSuffixTree(NodeFactory nodeFactory, boolean restrictConcurrency) {
+    public ConcurrentSuffixTree(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
         this.radixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory, restrictConcurrency);
         this.valueMap = new ConcurrentHashMap<String, O>();
     }

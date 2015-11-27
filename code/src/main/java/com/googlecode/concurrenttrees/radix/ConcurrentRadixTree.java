@@ -19,11 +19,19 @@ import com.googlecode.concurrenttrees.common.KeyValuePair;
 import com.googlecode.concurrenttrees.common.LazyIterator;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.common.CharSequences;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.util.ExponentialBackoff;
+import com.googlecode.concurrenttrees.radix.node.util.Pair;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
+import com.segment.backo.Backo;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.atomic.AtomicStampedReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -41,15 +49,20 @@ import static com.googlecode.concurrenttrees.radix.ConcurrentRadixTree.SearchRes
  */
 public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
     
-    private final NodeFactory nodeFactory;
+   // private final NodeFactory nodeFactory;
+    private final StampedNodeFactory nodeFactory;
 
-    protected AtomicReference<Node> root;
+    protected AtomicStampedReference<Node> root;
 
     // Write operations acquire write lock.
     // Read operations are lock-free by default, but can be forced to acquire read locks via constructor flag...
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     // If true, force reading threads to acquire read lock (they will block on writes).
     private final boolean restrictConcurrency;
+    
+    AtomicReferenceArray<Pair<Node, Node>> partialWorkThreads;
+    
+    private int numThreads;
 
     /**
      * Creates a new {@link ConcurrentRadixTree} which will use the given {@link NodeFactory} to create nodes.
@@ -57,8 +70,16 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
      * @param nodeFactory An object which creates {@link Node} objects on-demand, and which might return node 
      * implementations optimized for storing the values supplied to it for the creation of each node
      */
-    public ConcurrentRadixTree(NodeFactory nodeFactory) {
+/*    public ConcurrentRadixTree(NodeFactory nodeFactory) {
         this(nodeFactory, false);
+    }
+ */   
+    public ConcurrentRadixTree(StampedNodeFactory nodeFactory, int numberThreads) {
+    	this(nodeFactory, false);
+    	this.numThreads=numberThreads;
+    	partialWorkThreads = new AtomicReferenceArray<Pair<Node,Node>>(numberThreads+1);
+    	
+
     }
 
     /**
@@ -71,17 +92,28 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
      * if false, configures lock-free reads; allows concurrent non-blocking reads, even if writes are being performed
      * by other threads
      */
-    public ConcurrentRadixTree(NodeFactory nodeFactory, boolean restrictConcurrency) {
+ /*   public ConcurrentRadixTree(NodeFactory nodeFactory, boolean restrictConcurrency) {
         this.nodeFactory = nodeFactory;
         this.restrictConcurrency = restrictConcurrency;
         @SuppressWarnings({"NullableProblems", "UnnecessaryLocalVariable"})
         Node rootNode = nodeFactory.createNode("", null, Collections.<Node>emptyList(), true);
         this.root = new AtomicReference<Node>(rootNode);
     }
+ */   
+    public ConcurrentRadixTree(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
+        this.nodeFactory = nodeFactory;
+        this.restrictConcurrency = restrictConcurrency;
+        @SuppressWarnings({"NullableProblems", "UnnecessaryLocalVariable"})
+        AtomicStampedReference<Node> rootNode = nodeFactory.createStampedNode("", null, Collections.<Node>emptyList(), true);
+        this.root = rootNode;
+        
+  
+    	
+    }
 
     // ------------- Helper methods for serializing writes -------------
 
-    protected void acquireWriteLock() {
+	protected void acquireWriteLock() {
         readWriteLock.writeLock().lock();
     }
 
@@ -105,7 +137,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
 
     // ------------- Public API methods -------------
 
-
+    
     /**
      * {@inheritDoc}
      */
@@ -306,7 +338,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                         }
 
                         // Note the parent might actually be the root node (which we should never merge)...
-                        boolean parentIsRoot = (searchResult.parentNode == root.get());
+                        boolean parentIsRoot = (searchResult.parentNode == root.getReference());
                         Node newParent;
                         if (newEdgesOfParent.size() == 1 && searchResult.parentNode.getValue() == null && !parentIsRoot) {
                             // Parent is a non-root split node with only one remaining child, which can now be merged.
@@ -325,7 +357,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                         // Re-add the parent node to its parent...
                         if (parentIsRoot) {
                             // Replace the root node...
-                            this.root.set(newParent);
+                            this.root.set(newParent, 0);
                         }
                         else {
                             // Re-add the parent node to its parent...
@@ -488,7 +520,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
     @Override
     public int size() {
         Deque<Node> stack = new LinkedList<Node>();
-        stack.push(this.root.get());
+        stack.push(this.root.getReference());
         int count = 0;
         while (true) {
             if (stack.isEmpty()) {
@@ -526,58 +558,132 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         }
         boolean attempt;
         
-
+       int threadId= (int) (Thread.currentThread().getId()%this.numThreads+1);
+       
+       ExponentialBackoff bo = new ExponentialBackoff(100, 5);
+       int i=0;
   
         	while(true){
+        		i++;
             // Note we search the tree here after we have acquired the write lock...
-            SearchResult searchResult = searchTree(key);
+            SearchResult searchResult = searchTreeInsert(key);
+            //if(searchResult.nodeFound.hasChildStamped())
+            	//continue;
             SearchResult.Classification classification = searchResult.classification;
-            //System.out.println(searchResult.classification);
+            //System.out.println(this.toString());
+            System.out.println(threadId+"--+"+key+"+-->"+searchResult.parentNode + "==="+searchResult);
+
             switch (classification) {
                 case EXACT_MATCH: {
-                    // Search found an exact match for all edges leading to this node.
+					// Search found an exact match for all edges leading to this node.
                     // -> Add or update the value in the node found, by replacing
                     // the existing node with a new node containing the value...
                     // First check if existing node has a value, and if we are allowed to overwrite it.
                     // Return early without overwriting if necessary...
-                	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
+                
+                	/*if(searchResult.parentNodesParent!=null){
+                	attempt = searchResult.parentNodesParent.attemptStampChild(searchResult.parentNode, threadId); //attempt to mark the parent node
                 	if(!attempt) // if the node is marked, try again
                 		continue;
+                	}*/
+                	attempt = searchResult.parentNode.attemptStampChild(searchResult.nodeFound, threadId); //attempt to mark the parent node
+                	if(!attempt){ // if the node is marked, try again
+                		//if(searchResult.parentNodesParent!=null)
+                		//	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                		
+                		continue;
+                		
+                	}
                 	
                     Object existingValue = searchResult.nodeFound.getValue();
                     if (!overwrite && existingValue != null) {
                         return existingValue;
                     }
                     // Create a replacement for the existing node containing the new value...
-                    Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingEdges(), false);
-
-                    if(searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode, true, false))
-                    	// Return the existing value...
-                    	return existingValue;
-                    break;
+                    Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingStampedEdges(), false);
+                    
+                    //partial work
+                    //this.partialWorkThreads.set(threadId, Pair.of(searchResult.parentNode, replacementNode));
+                    
+                    
+                    
+                    if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode, threadId, 0)){
+                    	 bo.backoff();
+                    	 try {
+							bo.waitUntilRetryOk();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+                    	continue;
+                    }
+                    //if(searchResult.parentNodesParent!=null)
+                    //	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                    //this.partialWorkThreads.set(threadId, null);
+                    // Return the existing value...
+                   // System.out.println(threadId+"--> INSERT ("+key+")["+classification+"]"+replacementNode);
+                	return existingValue;
                 }
                 case KEY_ENDS_MID_EDGE: {
                     // Search ran out of characters from the key while in the middle of an edge in the node.
                     // -> Split the node in two: Create a new parent node storing the new value,
                     // and a new child node holding the original value and edges from the existing node...
                 	
-                	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
-                	if(!attempt) // if the node is marked, try again
+                	//if(searchResult.parentNodesParent!=null){
+                	//attempt = searchResult.parentNodesParent.attemptStampChild(searchResult.parentNode, threadId); //attempt to mark the parent node
+                	//if(!attempt) // if the node is marked, try again
+                	//	continue;
+                	//}
+                	
+                	attempt = searchResult.parentNode.attemptStampChild(searchResult.nodeFound, threadId); //attempt to mark the parent node
+                	if(!attempt){ // if the node is marked, try again
+                		//if(searchResult.parentNodesParent!=null)
+                		//	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                		 bo.backoff();
+                    	 try {
+							bo.waitUntilRetryOk();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
                 		continue;
+                		
+                	}
                 	
                     CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
                     CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
                     CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
 
                     // Create new nodes...
-                    Node newChild = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
-                    Node newParent = nodeFactory.createNode(commonPrefix, value, Arrays.asList(newChild), false);
+                    //if(searchResult.nodeFound.hasChildStamped())
+                    	//continue;
+                    Node newChild = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingStampedEdges(), false);
+                    AtomicStampedReference<Node> []childAsEdge = new AtomicStampedReference[1];
+                    childAsEdge[0]=new AtomicStampedReference<Node>(newChild,0);
+                    Node newParent = nodeFactory.createNode(commonPrefix, value, childAsEdge, false);
+                    
+                  //partial work
+                    //this.partialWorkThreads.set(threadId, Pair.of(searchResult.parentNode, newParent));
+                    
+                    
 
                     // Add the new parent to the parent of the node being replaced (replacing the existing node)...
-                    if(searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, newParent, true, false))	
+                    if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, newParent, threadId, 0)){	
                     	// Return null for the existing value...
-                    	return null;
-                    break;
+                    	 bo.backoff();
+                    	 try {
+							bo.waitUntilRetryOk();
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+                    	continue;
+                    }
+                    //this.partialWorkThreads.set(threadId, null);
+                    //if(searchResult.parentNodesParent!=null)
+                    	//searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                    //System.out.println(threadId+"--> INSERT ("+key+")["+classification+"]"+newParent+" === "+searchResult.parentNode);
+                    return null;
                 }
                 case INCOMPLETE_MATCH_TO_END_OF_EDGE: {
                     // Search found a difference in characters between the key and the start of all child edges leaving the
@@ -588,38 +694,96 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // (Root node's own edge is "" empty string, so is considered a prefixing edge of every key)
 
                 	// Create a new child node containing the trailing characters...
-                	
-                	Node pRoot=root.get();
-                	if (searchResult.nodeFound != pRoot) {
-                       	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
-                    	if(!attempt) // if the node is marked, try again
+                	boolean parent=true;
+                	Node pRoot=root.getReference();
+                	if (searchResult.parentNode!=null) {
+                		parent=false;
+                		//if(searchResult.parentNodesParent!=null){
+                			//attempt = searchResult.parentNodesParent.attemptStampChild(searchResult.parentNode, threadId); //attempt to mark the parent node
+                    	//if(!attempt) // if the node is marked, try again
+                    	//	continue;
+                		//}
+                		attempt = searchResult.parentNode.attemptStampChild(searchResult.nodeFound, threadId); //attempt to mark the parent node
+                    	if(!attempt){ // if the node is marked, try again
+                    		//if(searchResult.parentNodesParent!=null)
+                    		//	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                    		
                     		continue;
+                    	}	
+                    	
+                    	
+                		
+                    }else{
+                    	attempt = root.attemptStamp(pRoot, threadId); //attempt to mark the parent node
+                    	if(!attempt){ // if the node is marked, try again
+                    		System.out.println("fails2 "+root.getStamp());
+                    		try {
+								Thread.sleep((long) (Math.random()%10));
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+                    		continue;
+                    	}
                     }
                 	
                     CharSequence keySuffix = key.subSequence(searchResult.charsMatched, key.length());
+                    
                     Node newChild = nodeFactory.createNode(keySuffix, value, Collections.<Node>emptyList(), false);
 
                     // Clone the current node adding the new child...
-                    List<Node> edges = new ArrayList<Node>(searchResult.nodeFound.getOutgoingEdges().size() + 1);
-                    edges.addAll(searchResult.nodeFound.getOutgoingEdges());
-                    edges.add(newChild);
-                    Node clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), edges, searchResult.nodeFound == pRoot);
+                    //if(searchResult.nodeFound.hasChildStamped())
+                    	//continue;
+                    AtomicStampedReference<Node> []edges = searchResult.nodeFound.getOutgoingStampedEdges();
+                    AtomicStampedReference<Node> []finalEdges = new AtomicStampedReference[0];
+                    if(edges!=null){
+                    finalEdges = new AtomicStampedReference[edges.length+1];
+                    for (int j = 0; j < edges.length; j++) {
+						finalEdges[j]=edges[j];
+					}
+                    finalEdges[edges.length]=new AtomicStampedReference<Node>(newChild, 0);
+                    }
+                    Node clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), finalEdges, parent);
+
+                  
 
                     // Re-add the cloned node to its parent node...
-                    if (searchResult.nodeFound == pRoot) {
-                    	if(!root.compareAndSet(pRoot, clonedNode))
+                    if (searchResult.parentNode==null) {
+                    	//partial work
+                        //this.partialWorkThreads.set(threadId, Pair.of(pRoot, clonedNode));
+                        
+                    	
+                    	if(!root.compareAndSet(pRoot, clonedNode, threadId, 0)){ //check
+                    		 
                     		continue;
+                    	}
+                    	//this.partialWorkThreads.set(threadId, null);
+                    	//System.out.println(threadId+"--> INSERT ("+key+")["+classification+"]"+clonedNode+" === "+searchResult.parentNode);
                     	return null;
                     }
                     else {
-                         if(searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, clonedNode, true, false))	
-                        	// Return null for the existing value...
-                        	return null;
+                    	//partial work
+                        //this.partialWorkThreads.set(threadId, Pair.of(searchResult.nodeFound, clonedNode));
+                        
+                        
+                    	
+                         if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, clonedNode, threadId, 0)){	
+                        	 try {
+								Thread.sleep((long) (Math.random()%40));
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+                        	 System.out.println("fails "+searchResult.parentNode.getOutgoingStampedEdge(searchResult.nodeFound.getIncomingEdgeFirstCharacter()).getStamp());
+                        	 continue; 
+                        	
+                         }
+                         //this.partialWorkThreads.set(threadId, null);
+                        // if(searchResult.parentNodesParent!=null)
+                        	// searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                         //System.out.println(threadId+"--> INSERT ("+key+")["+classification+"] "+clonedNode +" === "+searchResult.parentNode);
+                         return null;
                     }
-
-                    // Return null for the existing value...
-                    //return null;
-                    break;
                 }
                 case INCOMPLETE_MATCH_TO_MIDDLE_OF_EDGE: {
                     // Search found a difference in characters between the key and the characters in the middle of the
@@ -633,12 +797,14 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // (3) Create a new node N3, which will be the split node, containing the matched characters from
                     // the key and the edge, and add N1 and N2 as child nodes of N3
                     // (4) Re-add N3 to the parent node of NF, effectively replacing NF in the tree
-                	Node pRoot=null;
-                	pRoot = root.get();
-                	                	
-                	attempt = searchResult.parentNode.attemptMarkChild(searchResult.nodeFound, true); //attempt to mark the parent node
-                	if(!attempt) // if the node is marked, try again
-                		continue;
+                	
+                	//if(searchResult.parentNodesParent!=null){                	
+                	//attempt = searchResult.parentNodesParent.attemptStampChild(searchResult.parentNode, threadId); //attempt to mark the parent node
+                	//if(!attempt) // if the node is marked, try again
+                	//	continue;
+                	//}
+                	
+                	
               	
                     CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
                     CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
@@ -647,15 +813,37 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
 
                     // Create new nodes...
                     Node n1 = nodeFactory.createNode(suffixFromKey, value, Collections.<Node>emptyList(), false);
-                    Node n2 = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
+                    //if(searchResult.nodeFound.hasChildStamped())
+                    	//continue;
+                    Node n2 = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingStampedEdges(), false);
                     @SuppressWarnings({"NullableProblems"})
-                    Node n3 = nodeFactory.createNode(commonPrefix, null, Arrays.asList(n1, n2), false);
+                    AtomicStampedReference<Node> []newEdges= new AtomicStampedReference[2];
+                    newEdges[0]=new AtomicStampedReference<Node>(n1,0);
+                    newEdges[1]=new AtomicStampedReference<Node>(n2,0);
+                    Node n3 = nodeFactory.createNode(commonPrefix, null, newEdges, false);
                     
+                  //partial work
+                    //this.partialWorkThreads.set(threadId, Pair.of(searchResult.parentNode, n3));
+                    
+                    attempt = searchResult.parentNode.attemptStampChild(searchResult.nodeFound, threadId); //attempt to mark the parent node
+                	if(!attempt){ // if the node is marked, try again
+                		//if(searchResult.parentNodesParent!=null) 
+                		//	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                		 
+                		continue;
+                		
+                	}
                   
-                    if(searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, n3, true, false))	
-                    	// Return null for the existing value...
-                    	return null;
-                    break;
+                    if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, n3, threadId, 0)){	
+                    	
+                    	continue;
+                    	
+                    }
+                    //this.partialWorkThreads.set(threadId, null);
+                   // if(searchResult.parentNodesParent!=null)
+                    //	searchResult.parentNodesParent.updateOutgoingEdge(searchResult.parentNode, searchResult.parentNode, threadId, 0);
+                    //System.out.println(threadId+"--> INSERT ("+key+")["+classification+"]"+n3+" === "+searchResult.parentNode);
+                    return null;
                     
                 	
                 }
@@ -665,12 +853,17 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                 }
             
         	}
+            
         }
+        	
+        
         
         
     }
 
-    // ------------- Helper method for finding descendants of a given node -------------
+
+
+	// ------------- Helper method for finding descendants of a given node -------------
 
     /**
      * Returns a lazy iterable which will return {@link CharSequence} keys for which the given key is a prefix.
@@ -1011,7 +1204,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
     SearchResult searchTree(CharSequence key) {
         Node parentNodesParent = null;
         Node parentNode = null;
-        Node currentNode = root.get();
+        Node currentNode = root.getReference();
         int charsMatched = 0, charsMatchedInNodeFound = 0;
         final int keyLength = key.length();
         outer_loop: while (charsMatched < keyLength) {
@@ -1039,8 +1232,74 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         }
         return new SearchResult(key, currentNode, charsMatched, charsMatchedInNodeFound, parentNode, parentNodesParent);
     }
+    
+    
+    private SearchResult searchTreeInsert(CharSequence key) {
+    	Node parentNodesParent = null;
+        Node parentNode = null;
 
-    /**
+        
+       // if(stamp!=0){
+       // 	if(this.partialWorkThreads.get(stamp)!=null){
+       // 		finishJob()
+       // 	}
+       // }
+        Node currentNode = root.getReference();
+        int charsMatched = 0, charsMatchedInNodeFound = 0;
+        final int keyLength = key.length();
+        outer_loop: while (charsMatched < keyLength) {
+        	int [] stampHolder = {0};
+            Node nextNode = currentNode.getOutgoingEdge(key.charAt(charsMatched), stampHolder);
+            if (nextNode == null) {
+                // Next node is a dead end...
+                //noinspection UnnecessaryLabelOnBreakStatement
+                break outer_loop;
+            }
+            
+            //Node nextNode = nextStampedNode.get(stampHolder);
+            if(stampHolder[0]!=0){
+            	//System.out.println("block");
+            	return searchTreeInsert(key);
+            	//if(finishJob(currentNode, nextNode, stampHolder))
+            		//nextStampedNode.set(nextNode, 0);
+            	//return searchTreeInsert(key);
+            }else{
+            	if(nextNode.hasChildStamped())
+            		return searchTreeInsert(key);
+            }
+
+            parentNodesParent = parentNode;
+            parentNode = currentNode;
+            currentNode = nextNode;
+            charsMatchedInNodeFound = 0;
+            CharSequence currentNodeEdgeCharacters = currentNode.getIncomingEdge();
+            for (int i = 0, numEdgeChars = currentNodeEdgeCharacters.length(); i < numEdgeChars && charsMatched < keyLength; i++) {
+                if (currentNodeEdgeCharacters.charAt(i) != key.charAt(charsMatched)) {
+                    // Found a difference in chars between character in key and a character in current node.
+                    // Current node is the deepest match (inexact match)....
+                    break outer_loop;
+                }
+                charsMatched++;
+                charsMatchedInNodeFound++;
+            }
+        }
+        return new SearchResult(key, currentNode, charsMatched, charsMatchedInNodeFound, parentNode, parentNodesParent);
+	}
+
+    private boolean finishJob(Node currentNode, Node expectedNode, int[] stampHolder) {
+		// TODO Auto-generated method stub
+		Pair<Node,Node> pair = this.partialWorkThreads.get(stampHolder[0]);
+		if(pair!=null){
+			if(pair.first.updateOutgoingEdge(expectedNode, pair.second, stampHolder[0], 0)){
+				System.out.println("finishing the job.. thread "+stampHolder[0]+ " "+pair.second);
+				partialWorkThreads.set(stampHolder[0], null);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
      * Encapsulates results of searching the tree for a node for which a given key is a prefix. Encapsulates the node
      * found, its parent node, its parent's parent node, and the number of characters matched in the current node and
      * in total.
@@ -1117,7 +1376,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
 
     @Override
     public Node getNode() {
-        return root.get();
+        return root.getReference();
     }
 
 }

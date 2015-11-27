@@ -19,6 +19,7 @@ import com.googlecode.concurrenttrees.common.CharSequences;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,11 +37,11 @@ public class LCSubstringSolver {
 
     class ConcurrentSuffixTreeImpl<V> extends ConcurrentRadixTree<V> {
 
-        public ConcurrentSuffixTreeImpl(NodeFactory nodeFactory) {
-            super(nodeFactory);
+        public ConcurrentSuffixTreeImpl(StampedNodeFactory nodeFactory, int numThreads) {
+            super(nodeFactory, numThreads);
         }
 
-        public ConcurrentSuffixTreeImpl(NodeFactory nodeFactory, boolean restrictConcurrency) {
+        public ConcurrentSuffixTreeImpl(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
             super(nodeFactory, restrictConcurrency);
         }
 
@@ -155,8 +156,8 @@ public class LCSubstringSolver {
      * on-demand, and which might return node implementations optimized for storing the values supplied to it for
      * the creation of each node
      */
-    public LCSubstringSolver(NodeFactory nodeFactory) {
-        this.suffixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory);
+    public LCSubstringSolver(StampedNodeFactory nodeFactory, int numThreads) {
+        this.suffixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory, numThreads);
         this.originalDocuments = createSetForOriginalKeys();
     }
 
@@ -171,7 +172,7 @@ public class LCSubstringSolver {
      * if false, configures lock-free reads; allows concurrent non-blocking reads, even if writes are being performed
      * by other threads
      */
-    public LCSubstringSolver(NodeFactory nodeFactory, boolean restrictConcurrency) {
+    public LCSubstringSolver(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
         this.suffixTree = new ConcurrentSuffixTreeImpl<Set<String>>(nodeFactory, restrictConcurrency);
         this.originalDocuments = createSetForOriginalKeys();
     }

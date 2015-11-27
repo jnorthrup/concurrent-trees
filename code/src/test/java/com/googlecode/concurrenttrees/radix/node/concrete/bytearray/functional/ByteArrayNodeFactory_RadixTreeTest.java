@@ -17,16 +17,18 @@ package com.googlecode.concurrenttrees.radix.node.concrete.bytearray.functional;
 
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTreeTest;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultByteArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedByteArrayNodeFactory;
 
 /**
  * @author Niall Gallagher
  */
 public class ByteArrayNodeFactory_RadixTreeTest extends ConcurrentRadixTreeTest {
 
-    private final NodeFactory nodeFactory = new DefaultByteArrayNodeFactory();
+    private final StampedNodeFactory nodeFactory = new StampedByteArrayNodeFactory();
     @Override
-    protected NodeFactory getNodeFactory() {
+    protected StampedNodeFactory getNodeFactory() {
         return nodeFactory;
     }
 }

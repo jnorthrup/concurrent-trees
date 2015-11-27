@@ -21,6 +21,7 @@ import com.googlecode.concurrenttrees.common.LazyIterator;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 import java.util.Collections;
@@ -38,11 +39,11 @@ public class ConcurrentInvertedRadixTree<O> implements InvertedRadixTree<O>, Pre
 
     static class ConcurrentInvertedRadixTreeImpl<O> extends ConcurrentRadixTree<O> {
 
-        public ConcurrentInvertedRadixTreeImpl(NodeFactory nodeFactory) {
-            super(nodeFactory);
+        public ConcurrentInvertedRadixTreeImpl(StampedNodeFactory nodeFactory, int numThreads) {
+            super(nodeFactory, numThreads);
         }
 
-        public ConcurrentInvertedRadixTreeImpl(NodeFactory nodeFactory, boolean restrictConcurrency) {
+        public ConcurrentInvertedRadixTreeImpl(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
             super(nodeFactory, restrictConcurrency);
         }
 
@@ -68,7 +69,7 @@ public class ConcurrentInvertedRadixTree<O> implements InvertedRadixTree<O>, Pre
                 public Iterator<KeyValuePair<O>> iterator() {
                     return new LazyIterator<KeyValuePair<O>>() {
 
-                        Node currentNode = root.get();
+                        Node currentNode = root.getReference();
                         int charsMatched = 0;
 
                         final int documentLength = input.length();
@@ -121,8 +122,8 @@ public class ConcurrentInvertedRadixTree<O> implements InvertedRadixTree<O>, Pre
      * @param nodeFactory An object which creates {@link Node} objects on-demand, and which might return node
      * implementations optimized for storing the values supplied to it for the creation of each node
      */
-    public ConcurrentInvertedRadixTree(NodeFactory nodeFactory) {
-        this.radixTree = new ConcurrentInvertedRadixTreeImpl<O>(nodeFactory);
+    public ConcurrentInvertedRadixTree(StampedNodeFactory nodeFactory, int numThreads) {
+        this.radixTree = new ConcurrentInvertedRadixTreeImpl<O>(nodeFactory, numThreads);
     }
 
     /**
@@ -135,7 +136,7 @@ public class ConcurrentInvertedRadixTree<O> implements InvertedRadixTree<O>, Pre
      * if false, configures lock-free reads; allows concurrent non-blocking reads, even if writes are being performed
      * by other threads
      */
-    public ConcurrentInvertedRadixTree(NodeFactory nodeFactory, boolean restrictConcurrency) {
+    public ConcurrentInvertedRadixTree(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
         this.radixTree = new ConcurrentInvertedRadixTreeImpl<O>(nodeFactory, restrictConcurrency);
     }
 

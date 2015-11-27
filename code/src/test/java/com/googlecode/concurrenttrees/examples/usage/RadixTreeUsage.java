@@ -20,6 +20,7 @@ import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.RadixTree;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 /**
@@ -29,7 +30,7 @@ import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 public class RadixTreeUsage {
 
     public static void main(String[] args) {
-        RadixTree<Integer> tree = new ConcurrentRadixTree<Integer>(new DefaultCharArrayNodeFactory());
+        RadixTree<Integer> tree = new ConcurrentRadixTree<Integer>(new StampedCharArrayNodeFactory(),1);
 
         System.out.println("inserting TEST");
         tree.put("TEST", 1);
