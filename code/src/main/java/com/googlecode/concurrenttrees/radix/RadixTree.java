@@ -15,10 +15,7 @@
  */
 package com.googlecode.concurrenttrees.radix;
 
-import java.util.concurrent.atomic.AtomicReferenceArray;
-
 import com.googlecode.concurrenttrees.common.KeyValuePair;
-import com.googlecode.concurrenttrees.radix.node.Node;
 
 /**
  * API of a radix tree, that is a tree which allows values to be looked up based on <i>prefixes</i> of the keys
@@ -162,12 +159,4 @@ public interface RadixTree<O> {
      * @return The number of keys/values stored in the tree
      */
     int size();
-    
-    /**
-     * Sets the array of partial work for each thread.
-     * <p/>
-     *
-     * @param The Array of atomic references
-     */
-
 }

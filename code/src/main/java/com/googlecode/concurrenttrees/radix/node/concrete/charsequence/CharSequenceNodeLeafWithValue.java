@@ -23,8 +23,8 @@ import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.atomic.AtomicStampedReference;
 
 /**
  * Stores incoming edge as a {@link CharSequence} (a <i>view</i> onto the original key) rather than copying the
@@ -42,11 +42,14 @@ public class CharSequenceNodeLeafWithValue implements Node {
     // An arbitrary value which the application associates with a key matching the path to this node in the tree.
     // This value can be null...
     private final Object value;
+    
+    private AtomicBoolean mark;
 
     public CharSequenceNodeLeafWithValue(CharSequence edgeCharSequence, Object value) {
         // Sort the child nodes...
         this.incomingEdgeCharSequence = edgeCharSequence;
         this.value = value;
+        this.mark = new AtomicBoolean(false);
     }
 
     @Override
@@ -68,41 +71,26 @@ public class CharSequenceNodeLeafWithValue implements Node {
     public Node getOutgoingEdge(Character edgeFirstCharacter) {
         return null;
     }
-    
-    @Override
-    public Node getOutgoingEdge(Character edgeFirstCharacter, int [] stampHolder) {
-        return null;
-    }
-    
-    @Override
-    public AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter) {
-        return null;
-    }
 
     @Override
     public void updateOutgoingEdge(Node childNode) {
         throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
     }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedNode, Node childNode) {
+    	 throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+    }
+    
+    @Override
+    public boolean updateOutgoingEdgeSentinel(Node expectedNode, Node childNode) {
+    	 throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+
+    }
 
     @Override
     public List<Node> getOutgoingEdges() {
         return Collections.emptyList();
-    }
-    
-
-    @Override
-    public boolean attemptStampChild(Node expectedChildNode, int newStamp){
-    	return false;
-    }
-    
-    @Override
-    public void setStampChild(Node expectedChildNode, int newStamp){
-
-    }
-    
-    @Override
-    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp) {
-        return false;
     }
 
     @Override
@@ -117,12 +105,17 @@ public class CharSequenceNodeLeafWithValue implements Node {
     }
     
     @Override
-	public boolean hasChildStamped() {
-		return false;
-	}
+    public boolean attemptMark(){
+    	return mark.compareAndSet(false, true);
+    }
     
     @Override
-    public AtomicStampedReference<Node> [] getOutgoingStampedEdges() {
-        return null;
+    public boolean getMark(){
+    	return mark.get();
+    }
+    
+    @Override
+    public void unMark(){
+    	mark.set(false);
     }
 }

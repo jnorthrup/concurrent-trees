@@ -18,10 +18,7 @@ package com.googlecode.concurrenttrees.radix.node.util;
 import com.googlecode.concurrenttrees.radix.node.Node;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.atomic.AtomicStampedReference;
-
 
 /**
  * Static utility methods useful when implementing {@link com.googlecode.concurrenttrees.radix.node.Node}s.
@@ -65,19 +62,11 @@ public class NodeUtil {
      * @return The index of the node representing the indicated edge, or a value < 0 if no such node exists in the
      * array
      */
-    public static int binarySearchForEdge(AtomicStampedReference<Node> [] childNodes, Character edgeFirstCharacter) {
-        List<? extends NodeCharacterProvider> childNodesList = new AtomicStampedReferenceArrayListAdapter<Node>(childNodes);
-        NodeCharacterProvider searchKey = new NodeCharacterKey(edgeFirstCharacter);
-        return Collections.binarySearch(childNodesList, searchKey, NODE_COMPARATOR);
-    }
-    
     public static int binarySearchForEdge(AtomicReferenceArray<Node> childNodes, Character edgeFirstCharacter) {
         List<? extends NodeCharacterProvider> childNodesList = new AtomicReferenceArrayListAdapter<Node>(childNodes);
         NodeCharacterProvider searchKey = new NodeCharacterKey(edgeFirstCharacter);
         return Collections.binarySearch(childNodesList, searchKey, NODE_COMPARATOR);
     }
-    
-
 
     /**
      * Throws an exception if any nodes in the given list represent edges having the same first character.
@@ -95,28 +84,4 @@ public class NodeUtil {
             throw new IllegalStateException("Duplicate edge detected in list of nodes supplied: " + nodes);
         }
     }
-
-	public static void ensureNoDuplicateEdges(
-			AtomicStampedReference<Node>[] finalEdges) {
-		// Sanity check that no two nodes specify an edge with the same first character...
-        Set<Character> uniqueChars = new HashSet<Character>(finalEdges.length);
-        for (AtomicStampedReference<Node> node : finalEdges) {
-            uniqueChars.add(node.getReference().getIncomingEdgeFirstCharacter());
-        }
-        if (finalEdges.length != uniqueChars.size()) {
-            throw new IllegalStateException("Duplicate edge detected in list of nodes supplied: " + finalEdges);
-        }
-		
-	}
-
-	public static int sequentialSearchForEdge(
-			AtomicStampedReference<Node>[] outgoingEdges,
-			Character edgeFirstCharacter) {
-		int i=0;
-		while(i<outgoingEdges.length){
-			if(outgoingEdges[i].getReference().getIncomingEdgeFirstCharacter().equals(edgeFirstCharacter))
-				return i;
-		}
-		return -1;
-	}
 }

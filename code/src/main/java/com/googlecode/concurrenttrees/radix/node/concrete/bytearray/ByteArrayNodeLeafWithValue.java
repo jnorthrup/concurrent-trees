@@ -16,11 +16,10 @@
 package com.googlecode.concurrenttrees.radix.node.concrete.bytearray;
 
 import com.googlecode.concurrenttrees.radix.node.Node;
-import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicStampedReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Similar to {@link com.googlecode.concurrenttrees.radix.node.concrete.chararray.CharArrayNodeLeafWithValue} but represents
@@ -41,6 +40,8 @@ public class ByteArrayNodeLeafWithValue implements Node {
     // An arbitrary value which the application associates with a key matching the path to this node in the tree.
     // This value can be null...
     private final Object value;
+    
+    private AtomicBoolean mark;
 
     public ByteArrayNodeLeafWithValue(CharSequence edgeCharSequence, Object value) {
         this.incomingEdgeCharArray = ByteArrayCharSequence.toSingleByteUtf8Encoding(edgeCharSequence);
@@ -66,42 +67,21 @@ public class ByteArrayNodeLeafWithValue implements Node {
     public Node getOutgoingEdge(Character edgeFirstCharacter) {
         return null;
     }
-    
-    @Override
-    public Node getOutgoingEdge(Character edgeFirstCharacter, int [] stampHolder) {
-        return null;
-    }
-    
-    @Override
-    public AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter) {
-        return null;
-    }
-
 
     @Override
     public void updateOutgoingEdge(Node childNode) {
         throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
     }
+    
+    @Override
+    public boolean updateOutgoingEdgeSentinel(Node expectedNode, Node childNode) {
+    	 throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+
+    }
 
     @Override
     public List<Node> getOutgoingEdges() {
         return Collections.emptyList();
-    }
-
-    
-    @Override
-    public boolean attemptStampChild(Node expectedChildNode, int newStamp){
-    	return false;
-    }
-    
-    @Override
-    public void setStampChild(Node expectedChildNode, int newStamp){
-
-    }
-    
-    @Override
-    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp) {
-        return false;
     }
 
     @Override
@@ -114,14 +94,28 @@ public class ByteArrayNodeLeafWithValue implements Node {
         sb.append("}");
         return sb.toString();
     }
-    
-    @Override
-	public boolean hasChildStamped() {
+
+	@Override
+	public boolean attemptMark() {
+		// TODO Auto-generated method stub
 		return false;
 	}
-    
-    @Override
-    public AtomicStampedReference<Node> [] getOutgoingStampedEdges() {
-        return null;
-    }
+
+	@Override
+	public boolean getMark() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void unMark() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public boolean updateOutgoingEdge(Node expectedNode, Node childNode) {
+		 throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+
+	}
 }

@@ -55,6 +55,17 @@ public class DefaultCharArrayNodeFactory implements NodeFactory {
         if (childNodes == null) {
             throw new IllegalStateException("The childNodes argument was null");
         }
+        if(isRoot && !childNodes.isEmpty()){ //special case for sentinel
+        	if (value instanceof VoidValue) {
+                return new CharArrayNodeNonLeafVoidValue(edgeCharacters, childNodes);
+            }
+            else if (value == null) {
+                return new CharArrayNodeNonLeafNullValue(edgeCharacters, childNodes);
+            }
+            else {
+                return new CharArrayNodeDefault(edgeCharacters, value, childNodes);
+            }
+        }
         NodeUtil.ensureNoDuplicateEdges(childNodes);
         if (childNodes.isEmpty()) {
             // Leaf node...

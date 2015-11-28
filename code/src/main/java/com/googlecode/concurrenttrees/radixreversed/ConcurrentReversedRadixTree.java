@@ -20,7 +20,6 @@ import com.googlecode.concurrenttrees.common.KeyValuePair;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
-import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 /**
@@ -36,11 +35,11 @@ public class ConcurrentReversedRadixTree<O> implements ReversedRadixTree<O>, Pre
 
     class ConcurrentReverseRadixTreeImpl<O> extends ConcurrentRadixTree<O> {
 
-        public ConcurrentReverseRadixTreeImpl(StampedNodeFactory nodeFactory, int numThreads) {
-            super(nodeFactory, numThreads);
+        public ConcurrentReverseRadixTreeImpl(NodeFactory nodeFactory) {
+            super(nodeFactory);
         }
 
-        public ConcurrentReverseRadixTreeImpl(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
+        public ConcurrentReverseRadixTreeImpl(NodeFactory nodeFactory, boolean restrictConcurrency) {
             super(nodeFactory, restrictConcurrency);
         }
 
@@ -59,8 +58,8 @@ public class ConcurrentReversedRadixTree<O> implements ReversedRadixTree<O>, Pre
      * @param nodeFactory An object which creates {@link Node} objects on-demand, and which might return node
      * implementations optimized for storing the values supplied to it for the creation of each node
      */
-    public ConcurrentReversedRadixTree(StampedNodeFactory nodeFactory, int numThreads) {
-        this.radixTree = new ConcurrentReverseRadixTreeImpl<O>(nodeFactory, numThreads);
+    public ConcurrentReversedRadixTree(NodeFactory nodeFactory) {
+        this.radixTree = new ConcurrentReverseRadixTreeImpl<O>(nodeFactory);
     }
 
     /**
@@ -73,7 +72,7 @@ public class ConcurrentReversedRadixTree<O> implements ReversedRadixTree<O>, Pre
      * if false, configures lock-free reads; allows concurrent non-blocking reads, even if writes are being performed
      * by other threads
      */
-    public ConcurrentReversedRadixTree(StampedNodeFactory nodeFactory, boolean restrictConcurrency) {
+    public ConcurrentReversedRadixTree(NodeFactory nodeFactory, boolean restrictConcurrency) {
         this.radixTree = new ConcurrentReverseRadixTreeImpl<O>(nodeFactory, restrictConcurrency);
     }
 

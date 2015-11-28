@@ -18,7 +18,6 @@ package com.googlecode.concurrenttrees.radix.node;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterProvider;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicStampedReference;
 
 /**
  * Specifies the methods that nodes must implement.
@@ -127,7 +126,6 @@ public interface Node extends NodeCharacterProvider {
      * node has no such outgoing edge
      */
     Node getOutgoingEdge(Character edgeFirstCharacter);
-    
 
     /**
      * Updates the child node reference for a given edge (identified by its first character) to point to a different
@@ -152,22 +150,14 @@ public interface Node extends NodeCharacterProvider {
      * @return A read-only list of the child nodes to which this node has outgoing edges
      */
     List<Node> getOutgoingEdges();
-    
-    
-    /*
-     * New methods for lock-free insertions
-     */
 
-    boolean attemptStampChild(Node expectedChildNode, int newStamp);
-    boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp);
+	boolean attemptMark();
 
-	Node getOutgoingEdge(Character edgeFirstCharacter, int[] stampHolder);
+	boolean getMark();
 
-	AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter);
+	void unMark();
 
-	void setStampChild(Node expectedChildNode, int newStamp);
+	boolean updateOutgoingEdge(Node expectedNode, Node childNode);
 
-	boolean hasChildStamped();
-
-	AtomicStampedReference<Node>[] getOutgoingStampedEdges();
+	boolean updateOutgoingEdgeSentinel(Node nodeFound, Node clonedNode);
 }

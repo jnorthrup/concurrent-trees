@@ -5,17 +5,16 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
-import com.googlecode.concurrenttrees.common.Iterables;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
-import com.googlecode.concurrenttrees.radix.RadixTree;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
+
+import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 public class ConcurrentRadixTreeUsage {
 	public static final String FILENAME="datasets/wordsEN.txt";
 	public static final int NUM_THREADS=2;
-	public static final int NUM_WORDS=8;
+	public static final int NUM_WORDS=4;
 	
 	public static String words[];
 	
@@ -58,7 +57,7 @@ public class ConcurrentRadixTreeUsage {
 	
 	public static void main(String[] args) {
 		words= new String[NUM_WORDS];
-        tree = new ConcurrentRadixTree<Integer>(new StampedCharArrayNodeFactory(), NUM_THREADS);
+        tree = new ConcurrentRadixTree<Integer>(new DefaultCharArrayNodeFactory());
         
         ThreadRadix [] threads = new ThreadRadix[NUM_THREADS];
         
@@ -92,4 +91,3 @@ public class ConcurrentRadixTreeUsage {
 	
 
 }
-

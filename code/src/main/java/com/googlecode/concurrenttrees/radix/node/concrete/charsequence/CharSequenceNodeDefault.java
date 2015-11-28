@@ -17,14 +17,13 @@ package com.googlecode.concurrenttrees.radix.node.concrete.charsequence;
 
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.util.AtomicReferenceArrayListAdapter;
-import com.googlecode.concurrenttrees.radix.node.util.AtomicStampedReferenceArrayListAdapter;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterComparator;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.atomic.AtomicStampedReference;
 
 /**
  * A implementation of the {@link Node} interface which stores the incoming edge as a {@link CharSequence} (a
@@ -61,22 +60,22 @@ public class CharSequenceNodeDefault implements Node {
     // References to child nodes representing outgoing edges from this node.
     // Once assigned we never add or remove references, but we do update existing references to point to new child
     // nodes provided new edges start with the same first character...
-    private final AtomicStampedReference<Node>[] outgoingEdges;
+    private final AtomicReferenceArray<Node> outgoingEdges;
 
     // An arbitrary value which the application associates with a key matching the path to this node in the tree.
     // This value can be null...
     private final Object value;
+    
+    private AtomicBoolean mark;
 
     public CharSequenceNodeDefault(CharSequence edgeCharSequence, Object value, List<Node> outgoingEdges) {
         Node[] childNodeArray = outgoingEdges.toArray(new Node[outgoingEdges.size()]);
         // Sort the child nodes...
         Arrays.sort(childNodeArray, new NodeCharacterComparator());
-        this.outgoingEdges = new AtomicStampedReference[childNodeArray.length];
-        for(int i=0; i<childNodeArray.length; i++){
-			this.outgoingEdges[i] = new AtomicStampedReference<Node>(childNodeArray[i], 0);
-        }
+        this.outgoingEdges = new AtomicReferenceArray<Node>(childNodeArray);
         this.incomingEdgeCharSequence = edgeCharSequence;
         this.value = value;
+        this.mark = new AtomicBoolean(false);
     }
 
     @Override
@@ -105,82 +104,44 @@ public class CharSequenceNodeDefault implements Node {
             return null;
         }
         // Atomically return the child node at this index...
-        return outgoingEdges[index].getReference();
-    }
-    
-    @Override
-    public Node getOutgoingEdge(Character edgeFirstCharacter, int[] stampHolder) {
-        // Binary search for the index of the node whose edge starts with the given character.
-        // Note that this binary search is safe in the face of concurrent modification due to constraints
-        // we enforce on use of the array, as documented in the binarySearchForEdge method...
-        int index = NodeUtil.binarySearchForEdge(outgoingEdges, edgeFirstCharacter);
-        if (index < 0) {
-            // No such edge exists...
-            return null;
-        }
-        // Atomically return the child node at this index...
-        return outgoingEdges[index].get(stampHolder);
-    }
-    
-    @Override
-    public AtomicStampedReference<Node> getOutgoingStampedEdge(Character edgeFirstCharacter) {
-        // Binary search for the index of the node whose edge starts with the given character.
-        // Note that this binary search is safe in the face of concurrent modification due to constraints
-        // we enforce on use of the array, as documented in the binarySearchForEdge method...
-        int index = NodeUtil.binarySearchForEdge(outgoingEdges, edgeFirstCharacter);
-        if (index < 0) {
-            // No such edge exists...
-            return null;
-        }
-        // Atomically return the child node at this index...
-        return outgoingEdges[index];
+        return outgoingEdges.get(index);
     }
 
     @Override
     public void updateOutgoingEdge(Node childNode) {
-        // old method
-
+        // Binary search for the index of the node whose edge starts with the given character.
+        // Note that this binary search is safe in the face of concurrent modification due to constraints
+        // we enforce on use of the array, as documented in the binarySearchForEdge method...
+        int index = NodeUtil.binarySearchForEdge(outgoingEdges, childNode.getIncomingEdgeFirstCharacter());
+        if (index < 0) {
+            throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+        }
+        // Atomically update the child node at this index...
+        outgoingEdges.set(index, childNode);
+    }
+    
+    @Override
+    public boolean updateOutgoingEdge(Node expectedNode, Node childNode) {
+        // Binary search for the index of the node whose edge starts with the given character.
+        // Note that this binary search is safe in the face of concurrent modification due to constraints
+        // we enforce on use of the array, as documented in the binarySearchForEdge method...
+        int index = NodeUtil.binarySearchForEdge(outgoingEdges, childNode.getIncomingEdgeFirstCharacter());
+        if (index < 0) {
+            throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
+        }
+        // Atomically update the child node at this index...
+        return outgoingEdges.compareAndSet(index, expectedNode, childNode);
+    }
+    
+    @Override
+    public boolean updateOutgoingEdgeSentinel(Node expectedNode, Node childNode) {
+        // Atomically update the child node at this index...
+        return outgoingEdges.compareAndSet(0, expectedNode, childNode);
     }
 
     @Override
     public List<Node> getOutgoingEdges() {
-        return new AtomicStampedReferenceArrayListAdapter<Node>(outgoingEdges);
-    }
-    
- 
-    @Override
-    public boolean attemptStampChild(Node expectedChildNode, int newStamp){
-    	int index = NodeUtil.binarySearchForEdge(outgoingEdges, expectedChildNode.getIncomingEdgeFirstCharacter());
-        if (index < 0) {
-            // No such edge exists...
-            return false;
-        }
-        Node n =outgoingEdges[index].getReference();
-    	return this.outgoingEdges[index].attemptStamp(n, newStamp);
-    }
-    
-    @Override
-    public void setStampChild(Node expectedChildNode, int newStamp){
-    	int index = NodeUtil.binarySearchForEdge(outgoingEdges, expectedChildNode.getIncomingEdgeFirstCharacter());
-        if (index < 0) {
-            // No such edge exists...
-        }
-        Node n =outgoingEdges[index].getReference();
-    	this.outgoingEdges[index].set(n, newStamp);
-    }
-    
-    @Override
-    public boolean updateOutgoingEdge(Node expectedChildNode, Node newChildNode, int expectedStamp, int newStamp) {
-        // Binary search for the index of the node whose edge starts with the given character.
-        // Note that this binary search is safe in the face of concurrent modification due to constraints
-        // we enforce on use of the array, as documented in the binarySearchForEdge method...
-        int index = NodeUtil.binarySearchForEdge(outgoingEdges, newChildNode.getIncomingEdgeFirstCharacter());
-        if (index < 0) {
-            throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + newChildNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + newChildNode);
-        }
-        // Atomically update the child node at this index...
-        return outgoingEdges[index].compareAndSet(expectedChildNode, newChildNode, expectedStamp, newStamp);
-  
+        return new AtomicReferenceArrayListAdapter<Node>(outgoingEdges);
     }
 
     @Override
@@ -195,15 +156,17 @@ public class CharSequenceNodeDefault implements Node {
     }
     
     @Override
-	public boolean hasChildStamped() {
-		for(int i=0; i< this.outgoingEdges.length; i++)
-			if(outgoingEdges[i].getStamp()!=0)
-				return true;
-		return false;
-	}
+    public boolean attemptMark(){
+    	return mark.compareAndSet(false, true);
+    }
     
     @Override
-    public AtomicStampedReference<Node> [] getOutgoingStampedEdges() {
-        return outgoingEdges;
+    public boolean getMark(){
+    	return mark.get();
+    }
+    
+    @Override
+    public void unMark(){
+    	mark.set(false);
     }
 }

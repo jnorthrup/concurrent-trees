@@ -19,11 +19,9 @@ package com.googlecode.concurrenttrees.examples.shakespeare;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.examples.shakespeare.util.IOUtil;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.suffix.ConcurrentSuffixTree;
 
 import javax.swing.*;
-
 import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +79,7 @@ public class BuildShakespeareWordSuffixTree {
     );
 
     public static void main(String[] args) {
-        ConcurrentSuffixTree<WordValue> tree = new ConcurrentSuffixTree<WordValue>(new StampedCharArrayNodeFactory(),1);
+        ConcurrentSuffixTree<WordValue> tree = new ConcurrentSuffixTree<WordValue>(new DefaultCharArrayNodeFactory());
         for (String file : files) {
             Set<String> wordsInFile = IOUtil.loadWordsFromTextFileOnClasspath(file, true); // true = convert to lowercase
             for (String word : wordsInFile) {

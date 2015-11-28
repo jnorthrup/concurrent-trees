@@ -21,7 +21,6 @@ import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
 import com.googlecode.concurrenttrees.radix.RadixTree;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 import java.util.*;
@@ -33,7 +32,7 @@ import java.util.*;
  */
 public class ConcurrentRadixTreeInMemoryFileSystem<F> implements PrettyPrintable, InMemoryFileSystem<F> {
 
-    private final RadixTree<F> radixTree = new ConcurrentRadixTree<F>(new StampedCharArrayNodeFactory(),1);
+    private final RadixTree<F> radixTree = new ConcurrentRadixTree<F>(new DefaultCharArrayNodeFactory());
 
     @Override
     public void addFile(String containingDirectory, String fileName, F file) {

@@ -18,7 +18,7 @@ package com.googlecode.concurrenttrees.examples.usage;
 import com.googlecode.concurrenttrees.common.CharSequences;
 import com.googlecode.concurrenttrees.common.Iterables;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 import com.googlecode.concurrenttrees.suffix.ConcurrentSuffixTree;
 import com.googlecode.concurrenttrees.suffix.SuffixTree;
@@ -33,7 +33,7 @@ public class SuffixTreeUsage {
         System.out.println("Suffixes for 'TOAST': " + Iterables.toString(CharSequences.generateSuffixes("TOAST")));
         System.out.println("Suffixes for 'TEAM': " + Iterables.toString(CharSequences.generateSuffixes("TEAM")));
 
-        SuffixTree<Integer> tree = new ConcurrentSuffixTree<Integer>(new StampedCharArrayNodeFactory(),1);
+        SuffixTree<Integer> tree = new ConcurrentSuffixTree<Integer>(new DefaultCharArrayNodeFactory());
 
         tree.put("TEST", 1);
         tree.put("TOAST", 2);

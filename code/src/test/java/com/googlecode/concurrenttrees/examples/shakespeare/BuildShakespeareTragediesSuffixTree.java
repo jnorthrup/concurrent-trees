@@ -19,7 +19,6 @@ package com.googlecode.concurrenttrees.examples.shakespeare;
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.examples.shakespeare.util.IOUtil;
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharSequenceNodeFactory;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedCharSequenceNodeFactory;
 import com.googlecode.concurrenttrees.suffix.ConcurrentSuffixTree;
 
 import java.io.IOException;
@@ -45,7 +44,7 @@ public class BuildShakespeareTragediesSuffixTree {
     );
 
     public static void main(String[] args) throws Exception {
-        ConcurrentSuffixTree<String> tree = new ConcurrentSuffixTree<String>(new StampedCharSequenceNodeFactory(), 1);
+        ConcurrentSuffixTree<String> tree = new ConcurrentSuffixTree<String>(new DefaultCharSequenceNodeFactory());
         for (String file : files) {
             String manuscript = IOUtil.loadTextFileFromClasspath(file, true, true, true); // true = convert to lowercase
             String manuscriptName = file.replaceAll("/.*/.*/", "").replace(".txt", "");

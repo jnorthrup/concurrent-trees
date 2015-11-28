@@ -15,8 +15,8 @@
  */
 package com.googlecode.concurrenttrees.radix.node.concrete.bytearray.functional;
 
-import com.googlecode.concurrenttrees.radix.node.StampedNodeFactory;
-import com.googlecode.concurrenttrees.radix.node.concrete.StampedByteArrayNodeFactory;
+import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.DefaultByteArrayNodeFactory;
 import com.googlecode.concurrenttrees.radixreversed.ConcurrentReversedRadixTreeTest;
 
 /**
@@ -24,9 +24,9 @@ import com.googlecode.concurrenttrees.radixreversed.ConcurrentReversedRadixTreeT
  */
 public class ByteArrayNodeFactory_ReversedRadixTreeTest extends ConcurrentReversedRadixTreeTest {
 
-    private final StampedNodeFactory nodeFactory = new StampedByteArrayNodeFactory();
+    private final NodeFactory nodeFactory = new DefaultByteArrayNodeFactory();
     @Override
-    protected StampedNodeFactory getNodeFactory() {
+    protected NodeFactory getNodeFactory() {
         return nodeFactory;
     }
 }
