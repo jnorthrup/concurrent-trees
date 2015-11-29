@@ -19,10 +19,12 @@ import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.util.AtomicReferenceArrayListAdapter;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterComparator;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
+import com.googlecode.concurrenttrees.radix.node.util.Pair;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -50,7 +52,12 @@ public class ByteArrayNodeDefault implements Node {
     // This value can be null...
     private final Object value;
 
+    // his mark represent the reserve of node to work on this node
     private AtomicBoolean mark;
+    
+    // the partialWork corresponds to references of nodes created by a thread 
+    // it is used to allow another incoming thread finishes the job of another stuck thread
+    private AtomicMarkableReference<Pair<Node, Node>> partialWork;
     
     public ByteArrayNodeDefault(CharSequence edgeCharSequence, Object value, List<Node> outgoingEdges) {
         Node[] childNodeArray = outgoingEdges.toArray(new Node[outgoingEdges.size()]);
@@ -59,6 +66,7 @@ public class ByteArrayNodeDefault implements Node {
         this.outgoingEdges = new AtomicReferenceArray<Node>(childNodeArray);
         this.incomingEdgeCharArray = ByteArrayCharSequence.toSingleByteUtf8Encoding(edgeCharSequence);
         this.value = value;
+        this.partialWork = new AtomicMarkableReference<Pair<Node, Node>>(null, false);
     }
 
     @Override
@@ -158,5 +166,20 @@ public class ByteArrayNodeDefault implements Node {
     @Override
     public void unMark(){
     	mark.set(false);
+    }
+    
+    @Override
+    public void setPartialWork(Node parent, Node newChild){
+    	this.partialWork.set(Pair.of(parent, newChild), true);
+    }
+    
+    @Override
+    public void unsetPartialWork(){
+    	this.partialWork.set(null, false);
+    }
+    
+    @Override
+    public Pair<Node, Node> getPartialWork(boolean [] markHolder){
+    	return this.partialWork.get(markHolder);
     }
 }

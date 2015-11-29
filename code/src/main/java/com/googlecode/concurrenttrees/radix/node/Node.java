@@ -16,6 +16,7 @@
 package com.googlecode.concurrenttrees.radix.node;
 
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterProvider;
+import com.googlecode.concurrenttrees.radix.node.util.Pair;
 
 import java.util.List;
 
@@ -160,4 +161,12 @@ public interface Node extends NodeCharacterProvider {
 	boolean updateOutgoingEdge(Node expectedNode, Node childNode);
 
 	boolean updateOutgoingEdgeSentinel(Node nodeFound, Node clonedNode);
+
+	Pair<Node, Node> getPartialWork(boolean[] markHolder);
+
+	void unsetPartialWork();
+
+	void setPartialWork(Node parentNode, Node n3);
+
+
 }

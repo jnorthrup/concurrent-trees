@@ -19,11 +19,13 @@ import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.util.AtomicReferenceArrayListAdapter;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterComparator;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
+import com.googlecode.concurrenttrees.radix.node.util.Pair;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -43,13 +45,19 @@ public class CharSequenceNodeLeafWithValue implements Node {
     // This value can be null...
     private final Object value;
     
+ // his mark represent the reserve of node to work on this node
     private AtomicBoolean mark;
+    
+    // the partialWork corresponds to references of nodes created by a thread 
+    // it is used to allow another incoming thread finishes the job of another stuck thread
+    private AtomicMarkableReference<Pair<Node, Node>> partialWork;
 
     public CharSequenceNodeLeafWithValue(CharSequence edgeCharSequence, Object value) {
         // Sort the child nodes...
         this.incomingEdgeCharSequence = edgeCharSequence;
         this.value = value;
         this.mark = new AtomicBoolean(false);
+        this.partialWork = new AtomicMarkableReference<Pair<Node, Node>>(null, false);
     }
 
     @Override
@@ -117,5 +125,20 @@ public class CharSequenceNodeLeafWithValue implements Node {
     @Override
     public void unMark(){
     	mark.set(false);
+    }
+    
+    @Override
+    public void setPartialWork(Node parent, Node newChild){
+    	this.partialWork.set(Pair.of(parent, newChild), true);
+    }
+    
+    @Override
+    public void unsetPartialWork(){
+    	this.partialWork.set(null, false);
+    }
+    
+    @Override
+    public Pair<Node, Node> getPartialWork(boolean [] markHolder){
+    	return this.partialWork.get(markHolder);
     }
 }

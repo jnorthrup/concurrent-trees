@@ -51,7 +51,7 @@ public class DefaultCharSequenceNodeFactory implements NodeFactory {
             throw new IllegalStateException("The edgeCharacters argument was null");
         }
         if (!isRoot && edgeCharacters.length() == 0) {
-            throw new IllegalStateException("Invalid edge characters for non-root node: " + CharSequences.toString(edgeCharacters));
+            throw new IllegalStateException("Invalid edge characters for non-root node: " + CharSequences.toString(edgeCharacters) +" ->"+isRoot);
         }
         if (childNodes == null) {
             throw new IllegalStateException("The childNodes argument was null");

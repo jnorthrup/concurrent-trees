@@ -14,7 +14,7 @@ public class ThreadRadix extends Thread {
 
     public void run() {
         for (int i = start; i < end; i++) {
-        	tree.put(ConcurrentRadixTreeUsage.words[i], i);
+        	tree.put(ConcurrentRadixTreeUsage.words.get(i), i);
 		}
     }
 }

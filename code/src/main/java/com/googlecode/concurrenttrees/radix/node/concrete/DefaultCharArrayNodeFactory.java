@@ -45,12 +45,12 @@ import java.util.List;
 public class DefaultCharArrayNodeFactory implements NodeFactory {
 
     @Override
-    public Node createNode(CharSequence edgeCharacters, Object value, List<Node> childNodes, boolean isRoot) {
+    public Node createNode(CharSequence edgeCharacters, Object value, List<Node> childNodes, boolean isRoot) throws IllegalStateException{
         if (edgeCharacters == null) {
             throw new IllegalStateException("The edgeCharacters argument was null");
         }
         if (!isRoot && edgeCharacters.length() == 0) {
-            throw new IllegalStateException("Invalid edge characters for non-root node: " + CharSequences.toString(edgeCharacters));
+            throw new IllegalStateException("Invalid edge characters for non-root node: " + CharSequences.toString(edgeCharacters) +" "+isRoot);
         }
         if (childNodes == null) {
             throw new IllegalStateException("The childNodes argument was null");

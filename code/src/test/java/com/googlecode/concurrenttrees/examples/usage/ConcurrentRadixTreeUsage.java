@@ -4,19 +4,20 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.StringTokenizer;
 
 import com.googlecode.concurrenttrees.common.PrettyPrinter;
 import com.googlecode.concurrenttrees.radix.ConcurrentRadixTree;
-
 import com.googlecode.concurrenttrees.radix.node.concrete.DefaultCharArrayNodeFactory;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
 public class ConcurrentRadixTreeUsage {
 	public static final String FILENAME="datasets/wordsEN.txt";
-	public static final int NUM_THREADS=2;
-	public static final int NUM_WORDS=4;
+	public static final int NUM_THREADS=40;
+	public static final int NUM_WORDS=200;
 	
-	public static String words[];
+	public static ArrayList<String> words;
 	
 	public static ConcurrentRadixTree<Integer> tree;
 	public static void readFile(){
@@ -31,8 +32,10 @@ public class ConcurrentRadixTreeUsage {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
             int i=0;
             while((line = bufferedReader.readLine()) != null && i<NUM_WORDS) {
-                words[i++]=line;
-                
+            	StringTokenizer stk = new StringTokenizer(line, " ");
+                while(stk.hasMoreTokens())
+                	words.add(stk.nextToken().trim());
+                i++;
             }   
 
             // Always close files.
@@ -56,7 +59,7 @@ public class ConcurrentRadixTreeUsage {
 	
 	
 	public static void main(String[] args) {
-		words= new String[NUM_WORDS];
+		words= new ArrayList<String>();
         tree = new ConcurrentRadixTree<Integer>(new DefaultCharArrayNodeFactory());
         
         ThreadRadix [] threads = new ThreadRadix[NUM_THREADS];
