@@ -158,8 +158,9 @@ public class CharArrayNodeNonLeafVoidValue implements Node {
     }
     
     @Override
-    public void setPartialWork(Node parent, Node newChild){
-    	this.partialWork.set(Pair.of(parent, newChild), true);
+    public boolean compareAndSetPartialWork(Pair expectedPair, Pair newPair, boolean expectedMark, boolean newMark){
+    	return this.partialWork.compareAndSet(expectedPair, newPair, expectedMark, newMark);
+
     }
     
     @Override

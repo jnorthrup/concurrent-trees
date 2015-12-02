@@ -20,6 +20,7 @@ import com.googlecode.concurrenttrees.common.LazyIterator;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
 import com.googlecode.concurrenttrees.common.CharSequences;
+import com.googlecode.concurrenttrees.radix.node.util.ExponentialBackoffStrategy;
 import com.googlecode.concurrenttrees.radix.node.util.Pair;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
@@ -531,8 +532,9 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
             throw new IllegalArgumentException("The value argument was null");
         }
         
-        int threadId = (int) Thread.currentThread().getId();
-
+        ExponentialBackoffStrategy backoff = new ExponentialBackoffStrategy(10,10,160);
+        
+        int attempts =0;
         while(true){
         	//sentinelMark=false;
             // Note we search the tree here after we have acquired the write lock...
@@ -543,11 +545,18 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         	//System.out.println(threadId+" === "+searchResult);
         	
         	
-        	if(finishJob(searchResult.nodeFound))
-        			continue;
+        	if(finishJob(searchResult))
+        	   continue;
         	
-            if(!markPath(searchResult))
-            		continue;
+        	if(!markPath(searchResult)){
+        		/*try {
+					Thread.sleep(backoff.delayBeforeNextRetry(++attempts));
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}*/
+        		continue;
+        	}
             
         
             
@@ -566,18 +575,21 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // Create a replacement for the existing node containing the new value...
                     Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingEdges(), false);
                     replacementNode.attemptMark();
-                    searchResult.nodeFound.setPartialWork(searchResult.parentNode, replacementNode);
-                    if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode)){
-                    	//if(sentinelMark)
-                    	//	sentinelSentinel.unMark();
-                    	//else
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	unmarkPath(searchResult);
+                    
+                    Pair<Node, Node> pair = Pair.of(searchResult.parentNode, replacementNode);
+                    
+                    if(!searchResult.nodeFound.compareAndSetPartialWork(null, pair, false, true))
                     	continue;
+                    
+                    
+                    if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode)){
+                    	//if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                        //	continue;
+                    	//unmarkPath(searchResult);
+                    	//continue;
+                    	return existingValue;
                     }
-                   // if(sentinelMark)
-                    //	sentinelSentinel.unMark();
-                	//else
+
                     searchResult.nodeFound.unsetPartialWork();
                     searchResult.nodeFound = replacementNode;
                     unmarkPath(searchResult);
@@ -596,21 +608,24 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     Node newChild = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
                     Node newParent = nodeFactory.createNode(commonPrefix, value, Arrays.asList(newChild), false);
                     newParent.attemptMark();
-                    searchResult.nodeFound.setPartialWork(searchResult.parentNode, newParent);
+                    
+                    Pair<Node, Node> pair = Pair.of(searchResult.parentNode, newParent);
+                    
+                    if(!searchResult.nodeFound.compareAndSetPartialWork(null, pair, false, true))
+                		continue;
+                   
+                    
+                   
+                    
                     // Add the new parent to the parent of the node being replaced (replacing the existing node)...
                     if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, newParent)){
-                    	//if(sentinelMark)
-                    	//	sentinelSentinel.unMark();
-                    	//else
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	unmarkPath(searchResult);
-                    	continue;
+                    	//if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                        //	continue;
+                    	// unmarkPath(searchResult);
+                    	// continue;
+                    	return null;
                     }
-                   
-                    // Return null for the existing value...
-                    //if(sentinelMark)
-                    //	sentinelSentinel.unMark();
-                	//else
+
                     searchResult.nodeFound.unsetPartialWork();
                     searchResult.nodeFound = newParent;
                     unmarkPath(searchResult);
@@ -635,37 +650,37 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     edges.add(newChild);
                     Node clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), edges, searchResult.nodeFound == root);
                     clonedNode.attemptMark();
-                    searchResult.nodeFound.setPartialWork(searchResult.parentNode, clonedNode);
+                    
+                    Pair<Node, Node> pair = Pair.of(searchResult.parentNode, clonedNode);
+                    
+                    if(!searchResult.nodeFound.compareAndSetPartialWork(null, pair, false, true))
+                		continue;
+                    
+                    
+                    
                     // Re-add the cloned node to its parent node...
                     if (searchResult.nodeFound==root) {
                     	if(!this.sentinel.updateOutgoingEdgeSentinel(searchResult.nodeFound, clonedNode)){
-                    		//if(sentinelMark)
-                    		//	sentinelSentinel.unMark();
-                        	//else
-                    		searchResult.nodeFound.unsetPartialWork();
+                    		/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                            	continue;
                     		unmarkPath(searchResult);
                     		continue;
+                    		*/
+                    		return null;
                     	}
                     	this.root=clonedNode;
-                    	//if(sentinelMark)
-                    	//	sentinelSentinel.unMark();
-                    	//else
                     	searchResult.nodeFound.unsetPartialWork();
                     	searchResult.nodeFound = clonedNode;
                     	unmarkPath(searchResult);
                     }
                     else {
                     	if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, clonedNode)){
-                    		//if(sentinelMark)
-                    		//	sentinelSentinel.unMark();
-                        	//else
-                    		searchResult.nodeFound.unsetPartialWork();
+                    		/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                            	continue;
                     		unmarkPath(searchResult);
-                    			continue;
+                    		continue;*/
+                    		return null;
                     	}
-                    	//if(sentinelMark)
-                    	//	sentinelSentinel.unMark();
-                    	//else
                     	searchResult.nodeFound.unsetPartialWork();
                     	searchResult.nodeFound = clonedNode;
                     	unmarkPath(searchResult);
@@ -700,21 +715,24 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     @SuppressWarnings({"NullableProblems"})
                     Node n3 = nodeFactory.createNode(commonPrefix, null, Arrays.asList(n1, n2), false);
                     n3.attemptMark();
-                    searchResult.nodeFound.setPartialWork(searchResult.parentNode, n3);
+                    
+                    Pair<Node, Node> pair = Pair.of(searchResult.parentNode, n3);
+                    
+                    if(!searchResult.nodeFound.compareAndSetPartialWork(null, pair, false, true))
+                		continue;
+                    
+                    
+                    
                     if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, n3)){
-                    	//if(sentinelMark)
-                    	//	sentinelSentinel.unMark();
-                    	//else
-                    	searchResult.nodeFound.unsetPartialWork();
+                    	/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                        	continue;
                     	unmarkPath(searchResult);
-                    	continue;
+                    	continue;*/
+                    	return null;
                     }
 
                     // Return null for the existing value...
                     
-                   // if(sentinelMark)
-                    //	sentinelSentinel.unMark();
-                	//else
                     searchResult.nodeFound.unsetPartialWork();
                     searchResult.nodeFound = n3;
                     unmarkPath(searchResult);
@@ -729,21 +747,26 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         }
     }
     
-    private boolean finishJob(Node nodeFound) {
+    private boolean finishJob(SearchResult searchResult) {
 		// TODO Auto-generated method stub
+    	if(!searchResult.nodeFound.getMark())
+    		return false;
+    	
     	boolean [] markHolder = {false};
-    	Pair<Node,Node> stateTable = nodeFound.getPartialWork(markHolder);
+    	Pair<Node,Node> stateTable = searchResult.nodeFound.getPartialWork(markHolder);
     	if(markHolder[0]){
     		if (stateTable.second.getIncomingEdge().length()==0) {
-            	if(this.sentinel.updateOutgoingEdgeSentinel(nodeFound, stateTable.second)){
-            		nodeFound.unsetPartialWork();
+            	if(this.sentinel.updateOutgoingEdgeSentinel(searchResult.nodeFound, stateTable.second)){
+            		searchResult.nodeFound.unsetPartialWork();
+            		//System.out.println("finishing the job");
             		this.root=stateTable.second;
             		stateTable.first.unMark();
             		this.root.unMark();
             		return true;
             	}
-    		}else if(stateTable.first.updateOutgoingEdge(nodeFound, stateTable.second)){
-    			nodeFound.unsetPartialWork();
+    		}else if(stateTable.first.updateOutgoingEdge(searchResult.nodeFound, stateTable.second)){
+    			//System.out.println("finishing the job");
+    			searchResult.nodeFound.unsetPartialWork();
     			stateTable.first.unMark();
     			stateTable.second.unMark();
     			return true;
@@ -752,6 +775,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
     	return false;
     		
 	}
+    
 
 	private boolean  markPath(SearchResult searchResult){
     	if(searchResult.parentNode.attemptMark())

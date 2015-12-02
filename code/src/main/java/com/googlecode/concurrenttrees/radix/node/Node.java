@@ -166,7 +166,8 @@ public interface Node extends NodeCharacterProvider {
 
 	void unsetPartialWork();
 
-	void setPartialWork(Node parentNode, Node n3);
+	boolean compareAndSetPartialWork(Pair expectedPair, Pair newPair, boolean expectedMark, boolean newMark);
+
 
 
 }
