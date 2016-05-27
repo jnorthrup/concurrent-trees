@@ -152,21 +152,22 @@ public interface Node extends NodeCharacterProvider {
      */
     List<Node> getOutgoingEdges();
 
-	boolean attemptMark();
-
-	boolean getMark();
-
-	void unMark();
 
 	boolean updateOutgoingEdge(Node expectedNode, Node childNode);
 
 	boolean updateOutgoingEdgeSentinel(Node nodeFound, Node clonedNode);
 
-	Pair<Node, Node> getPartialWork(boolean[] markHolder);
+	void setWorkToDo(CharSequence newString, boolean newFlag);
+	
 
-	void unsetPartialWork();
-
-	boolean compareAndSetPartialWork(Pair expectedPair, Pair newPair, boolean expectedMark, boolean newMark);
+	public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark);
+	
+	
+	CharSequence getWorkToDo(boolean [] markHolder);
+	
+	public void isToDoInsertion();
+	
+	public void setToDoInsertion(boolean insert);
 
 
 

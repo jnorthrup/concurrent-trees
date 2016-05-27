@@ -68,12 +68,13 @@ public class CharArrayNodeDefault implements Node {
     // This value can be null...
     private final Object value;
     
- // his mark represent the reserve of node to work on this node
-    private AtomicBoolean mark;
+    // this represents the partial work and a flag that indicates if the partial work is doing by its father (false) or 
+    // by the node itself (true)
+    // restriction: when modifying (insertion or deletion) old node and its father must have this partial work
+    private AtomicMarkableReference<CharSequence> toDo;
     
-    // the partialWork corresponds to references of nodes created by a thread 
-    // it is used to allow another incoming thread finishes the job of another stuck thread
-    private AtomicMarkableReference<Pair<Node, Node>> partialWork;
+    // flag to indicate if partial work corresponds to insertion or deletion
+    private AtomicBoolean isToDoInsertion;
 
     public CharArrayNodeDefault(CharSequence edgeCharSequence, Object value, List<Node> outgoingEdges) {
         Node[] childNodeArray = outgoingEdges.toArray(new Node[outgoingEdges.size()]);
@@ -82,8 +83,8 @@ public class CharArrayNodeDefault implements Node {
         this.outgoingEdges = new AtomicReferenceArray<Node>(childNodeArray);
         this.incomingEdgeCharArray = CharSequences.toCharArray(edgeCharSequence);
         this.value = value;
-        this.mark = new AtomicBoolean(false);
-        this.partialWork = new AtomicMarkableReference<Pair<Node, Node>>(null, false);
+        this.toDo = new AtomicMarkableReference<CharSequence>(null, false);
+        this.isToDoInsertion = new AtomicBoolean();
     }
 
     @Override
@@ -165,34 +166,32 @@ public class CharArrayNodeDefault implements Node {
         return sb.toString();
     }
     
-    @Override
-    public boolean attemptMark(){
-    	return mark.compareAndSet(false, true);
-    }
-    
-    @Override
-    public boolean getMark(){
-    	return mark.get();
-    }
-    
-    @Override
-    public void unMark(){
-    	mark.set(false);
-    }
-    
-    @Override
-    public boolean compareAndSetPartialWork(Pair expectedPair, Pair newPair, boolean expectedMark, boolean newMark){
-    	return this.partialWork.compareAndSet(expectedPair, newPair, expectedMark, newMark);
 
+    
+    @Override
+    public void isToDoInsertion(){
+    	this.isToDoInsertion.get();
     }
     
     @Override
-    public void unsetPartialWork(){
-    	this.partialWork.set(null, false);
+    public void setToDoInsertion(boolean insert){
+    	this.isToDoInsertion.set(insert);
     }
     
     @Override
-    public Pair<Node, Node> getPartialWork(boolean [] markHolder){
-    	return this.partialWork.get(markHolder);
+	public void setWorkToDo(CharSequence newString, boolean newFlag){
+    	this.toDo.set(newString, newFlag);
+    }
+    
+   
+    @Override
+    public CharSequence getWorkToDo(boolean [] markHolder){
+    	return this.toDo.get(markHolder);
+    }
+    
+    @Override
+    public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark){
+    	return this.toDo.compareAndSet(expectedWork, newWork, expectedMark, newMark);
+
     }
 }

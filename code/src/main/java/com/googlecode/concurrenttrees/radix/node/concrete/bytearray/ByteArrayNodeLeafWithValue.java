@@ -43,17 +43,18 @@ public class ByteArrayNodeLeafWithValue implements Node {
     // This value can be null...
     private final Object value;
     
- // his mark represent the reserve of node to work on this node
-    private AtomicBoolean mark;
+    // this represents the partial work and a flag that indicates if the partial work is doing by its father (false) or 
+    // by the node itself (true)
+    // restriction: when modifying (insertion or deletion) old node and its father must have this partial work
+    private AtomicMarkableReference<CharSequence> toDo;
     
-    // the partialWork corresponds to references of nodes created by a thread 
-    // it is used to allow another incoming thread finishes the job of another stuck thread
-    private AtomicMarkableReference<Pair<Node, Node>> partialWork;
+    // flag to indicate if partial work corresponds to insertion or deletion
+    private AtomicBoolean isToDoInsertion;
 
     public ByteArrayNodeLeafWithValue(CharSequence edgeCharSequence, Object value) {
         this.incomingEdgeCharArray = ByteArrayCharSequence.toSingleByteUtf8Encoding(edgeCharSequence);
-        this.mark = new AtomicBoolean(false);
-        this.partialWork = new AtomicMarkableReference<Pair<Node, Node>>(null, false);
+        this.toDo = new AtomicMarkableReference<CharSequence>(null, false);
+        this.isToDoInsertion = new AtomicBoolean();
         this.value = value;
     }
 
@@ -104,43 +105,36 @@ public class ByteArrayNodeLeafWithValue implements Node {
         return sb.toString();
     }
 
-	@Override
-	public boolean attemptMark() {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public void isToDoInsertion(){
+    	this.isToDoInsertion.get();
+    }
+    
+    @Override
+    public void setToDoInsertion(boolean insert){
+    	this.isToDoInsertion.set(insert);
+    }
+    
+    @Override
+	public void setWorkToDo(CharSequence newString, boolean newFlag){
+    	this.toDo.set(newString, newFlag);
+    }
+    
+   
+    @Override
+    public CharSequence getWorkToDo(boolean [] markHolder){
+    	return this.toDo.get(markHolder);
+    }
+    
+    @Override
+    public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark){
+    	return this.toDo.compareAndSet(expectedWork, newWork, expectedMark, newMark);
 
-	@Override
-	public boolean getMark() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public void unMark() {
-		// TODO Auto-generated method stub
-		
-	}
+    }
 
 	@Override
 	public boolean updateOutgoingEdge(Node expectedNode, Node childNode) {
-		 throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
-
+		// TODO Auto-generated method stub
+		return false;
 	}
-	
-	@Override
-    public boolean compareAndSetPartialWork(Pair expectedPair, Pair newPair, boolean expectedMark, boolean newMark){
-    	return this.partialWork.compareAndSet(expectedPair, newPair, expectedMark, newMark);
-
-    }
-    
-    @Override
-    public void unsetPartialWork(){
-    	this.partialWork.set(null, false);
-    }
-    
-    @Override
-    public Pair<Node, Node> getPartialWork(boolean [] markHolder){
-    	return this.partialWork.get(markHolder);
-    }
 }

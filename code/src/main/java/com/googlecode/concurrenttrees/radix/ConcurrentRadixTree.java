@@ -572,9 +572,15 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     if (!overwrite && existingValue != null) {
                         return existingValue;
                     }
+                    
+                    if(!setWorkToDo(searchResult.nodeFound, searchResult.nodeFound.getIncomingEdge(), false))
+                    	continue;
+                    
+                    
+                    
                     // Create a replacement for the existing node containing the new value...
                     Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingEdges(), false);
-                    replacementNode.attemptMark();
+
                     
                     Pair<Node, Node> pair = Pair.of(searchResult.parentNode, replacementNode);
                     
@@ -747,7 +753,23 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         }
     }
     
-    private boolean finishJob(SearchResult searchResult) {
+    private boolean setWorkToDo(Node nodeFound, CharSequence incomingEdge,
+			boolean fatherFlag, boolean isInsertion) {
+		// TODO Auto-generated method stub
+    	boolean [] markHolder = {false};
+    	CharSequence seq = nodeFound.getWorkToDo(markHolder);
+    	if(seq==null){
+    		//save work to do on nodeFound
+            if(!nodeFound.compareAndSetWorkToDo(null, incomingEdge, false, fatherFlag)
+            		return false;
+            nodeFound.setToDoInsertion(isInsertion);
+    	}else{
+    		
+    	}
+		return true;
+	}
+
+	private boolean finishJob(SearchResult searchResult) {
 		// TODO Auto-generated method stub
     	if(!searchResult.nodeFound.getMark())
     		return false;
