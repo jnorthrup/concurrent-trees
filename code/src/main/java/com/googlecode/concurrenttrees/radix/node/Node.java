@@ -157,18 +157,6 @@ public interface Node extends NodeCharacterProvider {
 
 	boolean updateOutgoingEdgeSentinel(Node nodeFound, Node clonedNode);
 
-	void setWorkToDo(CharSequence newString, boolean newFlag);
-	
-
-	public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark);
-	
-	
-	CharSequence getWorkToDo(boolean [] markHolder);
-	
-	public void isToDoInsertion();
-	
-	public void setToDoInsertion(boolean insert);
-
 
 
 }

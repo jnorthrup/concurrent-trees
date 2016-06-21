@@ -19,12 +19,11 @@ import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.util.AtomicReferenceArrayListAdapter;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterComparator;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
-import com.googlecode.concurrenttrees.radix.node.util.Pair;
+import com.googlecode.concurrenttrees.radix.node.util.Operation;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicMarkableReference;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -51,14 +50,10 @@ public class ByteArrayNodeDefault implements Node {
     // An arbitrary value which the application associates with a key matching the path to this node in the tree.
     // This value can be null...
     private final Object value;
-
- // this represents the partial work and a flag that indicates if the partial work is doind by its father (false) or 
-    // by the node itself (true)
-    // restriction: when modifying (insertio or deletion) old node and its fathe must have this partial work
-    private AtomicMarkableReference<CharSequence> toDo;
     
-    // flag to indicate if partial work corresponds to insertion or deletion
-    private AtomicBoolean isToDoInsertion;
+    // TODO
+    private AtomicReference<Operation> operation;
+    
     
     public ByteArrayNodeDefault(CharSequence edgeCharSequence, Object value, List<Node> outgoingEdges) {
         Node[] childNodeArray = outgoingEdges.toArray(new Node[outgoingEdges.size()]);
@@ -67,8 +62,7 @@ public class ByteArrayNodeDefault implements Node {
         this.outgoingEdges = new AtomicReferenceArray<Node>(childNodeArray);
         this.incomingEdgeCharArray = ByteArrayCharSequence.toSingleByteUtf8Encoding(edgeCharSequence);
         this.value = value;
-        this.toDo = new AtomicMarkableReference<CharSequence>(null, false);
-        this.isToDoInsertion = new AtomicBoolean();
+        this.operation = new AtomicReference<Operation>(null);
     }
 
     @Override
@@ -156,31 +150,6 @@ public class ByteArrayNodeDefault implements Node {
     }
     
     
-    @Override
-    public void isToDoInsertion(){
-    	this.isToDoInsertion.get();
-    }
-    
-    @Override
-    public void setToDoInsertion(boolean insert){
-    	this.isToDoInsertion.set(insert);
-    }
-    
-    @Override
-	public void setWorkToDo(CharSequence newString, boolean newFlag){
-    	this.toDo.set(newString, newFlag);
-    }
-    
-   
-    @Override
-    public CharSequence getWorkToDo(boolean [] markHolder){
-    	return this.toDo.get(markHolder);
-    }
-    
-    @Override
-    public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark){
-    	return this.toDo.compareAndSet(expectedWork, newWork, expectedMark, newMark);
 
-    }
 
 }

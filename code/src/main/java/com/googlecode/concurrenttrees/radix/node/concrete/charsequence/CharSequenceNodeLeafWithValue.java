@@ -19,6 +19,7 @@ import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.util.AtomicReferenceArrayListAdapter;
 import com.googlecode.concurrenttrees.radix.node.util.NodeCharacterComparator;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
+import com.googlecode.concurrenttrees.radix.node.util.Operation;
 import com.googlecode.concurrenttrees.radix.node.util.Pair;
 
 import java.util.Arrays;
@@ -26,6 +27,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicMarkableReference;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -45,20 +47,14 @@ public class CharSequenceNodeLeafWithValue implements Node {
     // This value can be null...
     private final Object value;
     
-    // this represents the partial work and a flag that indicates if the partial work is doing by its father (false) or 
-    // by the node itself (true)
-    // restriction: when modifying (insertion or deletion) old node and its father must have this partial work
-    private AtomicMarkableReference<CharSequence> toDo;
-    
-    // flag to indicate if partial work corresponds to insertion or deletion
-    private AtomicBoolean isToDoInsertion;
+    // TODO
+    private AtomicReference<Operation> operation;
 
     public CharSequenceNodeLeafWithValue(CharSequence edgeCharSequence, Object value) {
         // Sort the child nodes...
         this.incomingEdgeCharSequence = edgeCharSequence;
         this.value = value;
-        this.toDo = new AtomicMarkableReference<CharSequence>(null, false);
-        this.isToDoInsertion = new AtomicBoolean();
+        this.operation = new AtomicReference<Operation>(null);
     }
 
     @Override
@@ -113,30 +109,4 @@ public class CharSequenceNodeLeafWithValue implements Node {
         return sb.toString();
     }
     
-    @Override
-    public void isToDoInsertion(){
-    	this.isToDoInsertion.get();
-    }
-    
-    @Override
-    public void setToDoInsertion(boolean insert){
-    	this.isToDoInsertion.set(insert);
-    }
-    
-    @Override
-	public void setWorkToDo(CharSequence newString, boolean newFlag){
-    	this.toDo.set(newString, newFlag);
-    }
-    
-   
-    @Override
-    public CharSequence getWorkToDo(boolean [] markHolder){
-    	return this.toDo.get(markHolder);
-    }
-    
-    @Override
-    public boolean compareAndSetWorkToDo(CharSequence expectedWork, CharSequence newWork, boolean expectedMark, boolean newMark){
-    	return this.toDo.compareAndSet(expectedWork, newWork, expectedMark, newMark);
-
-    }
 }
