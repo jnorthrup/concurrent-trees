@@ -20,7 +20,9 @@ import com.googlecode.concurrenttrees.common.LazyIterator;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
 import com.googlecode.concurrenttrees.common.CharSequences;
+import com.googlecode.concurrenttrees.radix.node.util.Classification;
 import com.googlecode.concurrenttrees.radix.node.util.ExponentialBackoffStrategy;
+import com.googlecode.concurrenttrees.radix.node.util.Operation;
 import com.googlecode.concurrenttrees.radix.node.util.Pair;
 import com.googlecode.concurrenttrees.radix.node.util.PrettyPrintable;
 
@@ -28,7 +30,6 @@ import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.googlecode.concurrenttrees.radix.ConcurrentRadixTree.SearchResult.Classification;
 
 /**
  * An implementation of {@link RadixTree} which supports lock-free concurrent reads, and allows items to be added to and
@@ -141,7 +142,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         acquireReadLockIfNecessary();
         try {
             SearchResult searchResult = searchTree(key);
-            if (searchResult.classification.equals(SearchResult.Classification.EXACT_MATCH)) {
+            if (searchResult.classification.equals(Classification.EXACT_MATCH)) {
                 @SuppressWarnings({"unchecked", "UnnecessaryLocalVariable"})
                 O value = (O) searchResult.nodeFound.getValue();
                 return value;
@@ -260,7 +261,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         acquireWriteLock();
         try {
             SearchResult searchResult = searchTree(key);
-            SearchResult.Classification classification = searchResult.classification;
+            Classification classification = searchResult.classification;
             switch (classification) {
                 case EXACT_MATCH: {
                     if (searchResult.nodeFound.getValue() == null) {
@@ -540,7 +541,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
             // Note we search the tree here after we have acquired the write lock...
         	SearchResult searchResult = searchTree(key);
 
-        	SearchResult.Classification classification = searchResult.classification;
+        	Classification classification = searchResult.classification;
         	
         	//System.out.println(threadId+" === "+searchResult);
         	
@@ -573,32 +574,29 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                         return existingValue;
                     }
                     
-                    if(!setWorkToDo(searchResult.nodeFound, searchResult.nodeFound.getIncomingEdge(), false))
+                    // Create partial work
+                    Operation operationChild = new Operation(classification, key, value, false, true);
+                    Operation operationParent = new Operation(classification, key, value, true, true);
+                    
+                    // Set the work to do
+                    if(!setWorkToDo(searchResult.nodeFound, operationChild))
                     	continue;
-                    
-                    
+                    if(!setWorkToDo(searchResult.parentNode, operationParent)){
+                    	searchResult.parentNode.unsetPartialWork();
+                    	continue;
+                    }
                     
                     // Create a replacement for the existing node containing the new value...
                     Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingEdges(), false);
 
                     
-                    Pair<Node, Node> pair = Pair.of(searchResult.parentNode, replacementNode);
-                    
-                    if(!searchResult.nodeFound.compareAndSetPartialWork(null, pair, false, true))
-                    	continue;
-                    
-                    
                     if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode)){
-                    	//if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
-                        //	continue;
-                    	//unmarkPath(searchResult);
-                    	//continue;
+                    	// shouldn't fail here
+                    	System.out.println("SHOULDN'T FAIL HERE");
                     	return existingValue;
                     }
 
-                    searchResult.nodeFound.unsetPartialWork();
-                    searchResult.nodeFound = replacementNode;
-                    unmarkPath(searchResult);
+                    searchResult.parentNode.unsetPartialWork();
                     // Return the existing value...
                     return existingValue;
                 }
@@ -753,20 +751,20 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         }
     }
     
-    private boolean setWorkToDo(Node nodeFound, CharSequence incomingEdge,
-			boolean fatherFlag, boolean isInsertion) {
+    private boolean setWorkToDo(Node nodeFound, Operation operation) {
 		// TODO Auto-generated method stub
-    	boolean [] markHolder = {false};
-    	CharSequence seq = nodeFound.getWorkToDo(markHolder);
+    	Operation seq = nodeFound.getWorkToDo();
     	if(seq==null){
     		//save work to do on nodeFound
-            if(!nodeFound.compareAndSetWorkToDo(null, incomingEdge, false, fatherFlag)
-            		return false;
-            nodeFound.setToDoInsertion(isInsertion);
+            if(!nodeFound.compareAndSetWorkToDo(null, operation))
+            	return false;
+            return true;
     	}else{
-    		
+    		// there is partial work to finish, try it
+    		// TODO
+    		return false;
     	}
-		return true;
+
 	}
 
 	private boolean finishJob(SearchResult searchResult) {
@@ -1212,13 +1210,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         final Node parentNodesParent;
         final Classification classification;
 
-        enum Classification {
-            EXACT_MATCH,
-            INCOMPLETE_MATCH_TO_END_OF_EDGE,
-            INCOMPLETE_MATCH_TO_MIDDLE_OF_EDGE,
-            KEY_ENDS_MID_EDGE,
-            INVALID // INVALID is never used, except in unit testing
-        }
+      
 
         SearchResult(CharSequence key, Node nodeFound, int charsMatched, int charsMatchedInNodeFound, Node parentNode, Node parentNodesParent) {
             this.key = key;
