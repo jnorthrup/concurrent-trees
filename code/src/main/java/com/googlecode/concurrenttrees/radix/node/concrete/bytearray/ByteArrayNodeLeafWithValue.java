@@ -107,4 +107,16 @@ public class ByteArrayNodeLeafWithValue implements Node {
 		// TODO Auto-generated method stub
 		return false;
 	}
+
+	public Operation getWorkToDo() {
+		return this.operation.get();
+	}
+    
+	public boolean compareAndSetWorkToDo(Operation expectedObj, Operation newObj){
+		return this.operation.compareAndSet(expectedObj, newObj);
+	}
+	
+	public void unsetPartialWork(){
+		this.operation.set(null);
+	}
 }

@@ -148,6 +148,18 @@ public class ByteArrayNodeDefault implements Node {
         sb.append("}");
         return sb.toString();
     }
+
+    public Operation getWorkToDo() {
+		return this.operation.get();
+	}
+    
+	public boolean compareAndSetWorkToDo(Operation expectedObj, Operation newObj){
+		return this.operation.compareAndSet(expectedObj, newObj);
+	}
+	
+	public void unsetPartialWork(){
+		this.operation.set(null);
+	}
     
     
 

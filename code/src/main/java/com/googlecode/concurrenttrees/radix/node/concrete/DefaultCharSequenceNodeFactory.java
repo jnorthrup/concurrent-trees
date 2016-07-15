@@ -18,6 +18,9 @@ package com.googlecode.concurrenttrees.radix.node.concrete;
 import com.googlecode.concurrenttrees.common.CharSequences;
 import com.googlecode.concurrenttrees.radix.node.Node;
 import com.googlecode.concurrenttrees.radix.node.NodeFactory;
+import com.googlecode.concurrenttrees.radix.node.concrete.chararray.CharArrayNodeDefault;
+import com.googlecode.concurrenttrees.radix.node.concrete.chararray.CharArrayNodeNonLeafNullValue;
+import com.googlecode.concurrenttrees.radix.node.concrete.chararray.CharArrayNodeNonLeafVoidValue;
 import com.googlecode.concurrenttrees.radix.node.concrete.charsequence.*;
 import com.googlecode.concurrenttrees.radix.node.concrete.voidvalue.VoidValue;
 import com.googlecode.concurrenttrees.radix.node.util.NodeUtil;
@@ -56,6 +59,19 @@ public class DefaultCharSequenceNodeFactory implements NodeFactory {
         if (childNodes == null) {
             throw new IllegalStateException("The childNodes argument was null");
         }
+        
+        if(isRoot && !childNodes.isEmpty()){ //special case for sentinel
+        	if (value instanceof VoidValue) {
+                return new CharSequenceNodeNonLeafVoidValue(edgeCharacters, childNodes);
+            }
+            else if (value == null) {
+                return new CharSequenceNodeNonLeafNullValue(edgeCharacters, childNodes);
+            }
+            else {
+                return new CharSequenceNodeDefault(edgeCharacters, value, childNodes);
+            }
+        }
+        
         NodeUtil.ensureNoDuplicateEdges(childNodes);
 
 
