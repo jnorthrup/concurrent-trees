@@ -546,7 +546,17 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
         	//System.out.println(" === "+searchResult);
         	
         	
-        	      
+        	// Create partial work
+            Operation operationChild = new Operation(searchResult, key, value, false, true, overwrite);
+            Operation operationParent = new Operation(searchResult, key, value, true, true, overwrite);
+            
+            // Set the work to do
+            if(!setWorkToDo(searchResult.nodeFound, operationChild))
+            	continue;
+            if(!setWorkToDo(searchResult.parentNode, operationParent)){
+            	searchResult.nodeFound.unsetPartialWork();
+            	continue;
+            }
         
             
             switch (classification) {
@@ -560,18 +570,6 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     Object existingValue = searchResult.nodeFound.getValue();
                     if (!overwrite && existingValue != null) {
                         return existingValue;
-                    }
-                    
-                    // Create partial work
-                    Operation operationChild = new Operation(classification, key, value, false, true);
-                    Operation operationParent = new Operation(classification, key, value, true, true);
-                    
-                    // Set the work to do
-                    if(!setWorkToDo(searchResult.nodeFound, operationChild))
-                    	continue;
-                    if(!setWorkToDo(searchResult.parentNode, operationParent)){
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	continue;
                     }
                     
                     // Create a replacement for the existing node containing the new value...
@@ -596,17 +594,6 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
                     CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
                     
-                    // Create partial work
-                    Operation operationChild = new Operation(classification, key, value, false, true);
-                    Operation operationParent = new Operation(classification, key, value, true, true);
-                    
-                    // Set the work to do
-                    if(!setWorkToDo(searchResult.nodeFound, operationChild))
-                    	continue;
-                    if(!setWorkToDo(searchResult.parentNode, operationParent)){
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	continue;
-                    }
 
                     // Create new nodes...
                     Node newChild = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
@@ -619,8 +606,8 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     	//if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
                         //	continue;
                     	// unmarkPath(searchResult);
-                    	// continue;
-                    	return null;
+                    	//System.out.println("ERROR1: SHOULDN'T FAIL HERE");
+                    	continue;
                     }
 
                     searchResult.parentNode.unsetPartialWork();
@@ -634,17 +621,6 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // NOTE: this is the only branch which allows an edge to be added to the root.
                     // (Root node's own edge is "" empty string, so is considered a prefixing edge of every key)
                 	
-                    // Create partial work
-                    Operation operationChild = new Operation(classification, key, value, false, true);
-                    Operation operationParent = new Operation(classification, key, value, true, true);
-                    
-                    // Set the work to do
-                    if(!setWorkToDo(searchResult.nodeFound, operationChild))
-                    	continue;
-                    if(!setWorkToDo(searchResult.parentNode, operationParent)){
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	continue;
-                    }
 
                     // Create a new child node containing the trailing characters...
                     CharSequence keySuffix = key.subSequence(searchResult.charsMatched, key.length());
@@ -654,8 +630,13 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     List<Node> edges = new ArrayList<Node>(searchResult.nodeFound.getOutgoingEdges().size() + 1);
                     edges.addAll(searchResult.nodeFound.getOutgoingEdges());
                     edges.add(newChild);
-                    Node clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), edges, searchResult.nodeFound == root);
-
+                    Node clonedNode = null;
+                    try{
+                    	clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), edges, searchResult.nodeFound == root);
+                    }catch(Exception e){
+                    	System.out.println(e.toString());
+                    	continue;
+                    }
                                                                                 
                     // Re-add the cloned node to its parent node...
                     if (searchResult.nodeFound==root) {
@@ -665,7 +646,8 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     		unmarkPath(searchResult);
                     		continue;
                     		*/
-                    		return null;
+                    		//System.out.println("ERROR2: SHOULDN'T FAIL HERE");
+                    		continue;
                     	}
                     	this.root=clonedNode;
                     	searchResult.parentNode.unsetPartialWork();
@@ -676,7 +658,8 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                             	continue;
                     		unmarkPath(searchResult);
                     		continue;*/
-                    		return null;
+                    		//System.out.println("ERROR2: SHOULDN'T FAIL HERE");
+                    		continue;
                     	}
                     	searchResult.parentNode.unsetPartialWork();
                 	
@@ -700,18 +683,6 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                     // (4) Re-add N3 to the parent node of NF, effectively replacing NF in the tree
                 	
                 	
-                    // Create partial work
-                    Operation operationChild = new Operation(classification, key, value, false, true);
-                    Operation operationParent = new Operation(classification, key, value, true, true);
-                    
-                    // Set the work to do
-                    if(!setWorkToDo(searchResult.nodeFound, operationChild))
-                    	continue;
-                    if(!setWorkToDo(searchResult.parentNode, operationParent)){
-                    	searchResult.nodeFound.unsetPartialWork();
-                    	continue;
-                    }
-
                     CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
                     CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
                     CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
@@ -729,7 +700,8 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
                         	continue;
                     	unmarkPath(searchResult);
                     	continue;*/
-                    	return null;
+                    	//System.out.println("ERROR1: SHOULDN'T FAIL HERE");
+                    	continue;
                     }
 
                     // Return null for the existing value...
@@ -755,20 +727,214 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
             	return false;
             return true;
     	}else{
-    		// there is partial work to finish, try it
-    		// TODO
+    		// there is partial work, try to finish it
+    		
+    		if(!seq.performingNode){
+    			/*
+    			Node parent = seq.searchResult.parentNode;
+    			Operation opParent = parent.getWorkToDo();
+    			if(opParent == null){
+    				Operation operationParent = new Operation(seq.searchResult, seq.key, seq.value, true, true, seq.overwrite);
+    				if(!parent.compareAndSetWorkToDo(null, operationParent))
+    					return false;
+    			}*/
+    			Node parent = seq.searchResult.parentNode;
+    			Operation opParent = parent.getWorkToDo();
+    			if(opParent != null){
+    				try{
+        				finishInsertion(opParent);
+        					//System.out.println("work done by another thread");
+        			}catch(Exception e){
+        				System.out.println(e.toString());
+        				return false;
+        			}
+    			}
+    			return false;
+    		}
+    		
+    		if(seq.isInsertion){
+    			try{
+    				finishInsertion(seq);
+    					//System.out.println("work done by another thread");
+    			}catch(Exception e){
+    				System.out.println(e.toString());
+    				return false;
+    			}
+    		}
+    		else finishDeletion(operation); 
     		return false;
     	}
 
 	}
 
-	private boolean finishJob(SearchResult searchResult) {
+	private boolean finishInsertion(Operation operation) {
+		// TODO Auto-generated method stub
+
+		SearchResult searchResult = operation.searchResult;
+		Object value = operation.value;
+		CharSequence key = operation.key;
+		
+		switch (operation.searchResult.classification) {
+        case EXACT_MATCH: {
+            // Search found an exact match for all edges leading to this node.
+            // -> Add or update the value in the node found, by replacing
+            // the existing node with a new node containing the value...
+
+            // First check if existing node has a value, and if we are allowed to overwrite it.
+            // Return early without overwriting if necessary...
+            Object existingValue = searchResult.nodeFound.getValue();
+            if (!operation.overwrite && existingValue != null) {
+                return true;
+            }
+            
+          
+            // Create a replacement for the existing node containing the new value...
+            Node replacementNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), value, searchResult.nodeFound.getOutgoingEdges(), false);
+
+            
+            if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, replacementNode)){
+            	// shouldn't fail here
+            	//System.out.println("FINISHING WORK... SHOULDN'T FAIL HERE");
+            	return false;
+            }
+
+            searchResult.parentNode.unsetPartialWork();
+            // Return the existing value...
+            return true;
+        }
+        case KEY_ENDS_MID_EDGE: {
+            // Search ran out of characters from the key while in the middle of an edge in the node.
+            // -> Split the node in two: Create a new parent node storing the new value,
+            // and a new child node holding the original value and edges from the existing node...
+            CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
+            CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
+            CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
+            
+
+            // Create new nodes...
+            Node newChild = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
+            Node newParent = nodeFactory.createNode(commonPrefix, value, Arrays.asList(newChild), false);
+
+            
+                                
+            // Add the new parent to the parent of the node being replaced (replacing the existing node)...
+            if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, newParent)){
+            	//if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                //	continue;
+            	// unmarkPath(searchResult);
+            	// continue;
+            	return false;
+            }
+
+            searchResult.parentNode.unsetPartialWork();
+            return true;
+        }
+        case INCOMPLETE_MATCH_TO_END_OF_EDGE: {
+            // Search found a difference in characters between the key and the start of all child edges leaving the
+            // node, the key still has trailing unmatched characters.
+            // -> Add a new child to the node, containing the trailing characters from the key.
+
+            // NOTE: this is the only branch which allows an edge to be added to the root.
+            // (Root node's own edge is "" empty string, so is considered a prefixing edge of every key)
+        	
+
+            // Create a new child node containing the trailing characters...
+            CharSequence keySuffix = key.subSequence(searchResult.charsMatched, key.length());
+            Node newChild = nodeFactory.createNode(keySuffix, value, Collections.<Node>emptyList(), false);
+
+            // Clone the current node adding the new child...                    
+            List<Node> edges = new ArrayList<Node>(searchResult.nodeFound.getOutgoingEdges().size() + 1);
+            edges.addAll(searchResult.nodeFound.getOutgoingEdges());
+            edges.add(newChild);
+            Node clonedNode = nodeFactory.createNode(searchResult.nodeFound.getIncomingEdge(), searchResult.nodeFound.getValue(), edges, searchResult.nodeFound == root);
+
+                                                                        
+            // Re-add the cloned node to its parent node...
+            if (searchResult.nodeFound==root) {
+            	if(!this.sentinel.updateOutgoingEdgeSentinel(searchResult.nodeFound, clonedNode)){
+            		/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                    	continue;
+            		unmarkPath(searchResult);
+            		continue;
+            		*/
+            		return false;
+            	}
+            	this.root=clonedNode;
+            	searchResult.parentNode.unsetPartialWork();
+            }
+            else {
+            	if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, clonedNode)){
+            		/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                    	continue;
+            		unmarkPath(searchResult);
+            		continue;*/
+            		return false;
+            	}
+            	searchResult.parentNode.unsetPartialWork();
+        	
+            }
+            
+            //System.out.println(key);
+            // Return null for the existing value...
+            return true;
+        }
+        case INCOMPLETE_MATCH_TO_MIDDLE_OF_EDGE: {
+            // Search found a difference in characters between the key and the characters in the middle of the
+            // edge in the current node, and the key still has trailing unmatched characters.
+            // -> Split the node in three:
+            // Let's call node found: NF
+            // (1) Create a new node N1 containing the unmatched characters from the rest of the key, and the
+            // value supplied to this method
+            // (2) Create a new node N2 containing the unmatched characters from the rest of the edge in NF, and
+            // copy the original edges and the value from NF unmodified into N2
+            // (3) Create a new node N3, which will be the split node, containing the matched characters from
+            // the key and the edge, and add N1 and N2 as child nodes of N3
+            // (4) Re-add N3 to the parent node of NF, effectively replacing NF in the tree
+        	
+        	
+
+            CharSequence keyCharsFromStartOfNodeFound = key.subSequence(searchResult.charsMatched - searchResult.charsMatchedInNodeFound, key.length());
+            CharSequence commonPrefix = CharSequences.getCommonPrefix(keyCharsFromStartOfNodeFound, searchResult.nodeFound.getIncomingEdge());
+            CharSequence suffixFromExistingEdge = CharSequences.subtractPrefix(searchResult.nodeFound.getIncomingEdge(), commonPrefix);
+            CharSequence suffixFromKey = key.subSequence(searchResult.charsMatched, key.length());
+
+            // Create new nodes...
+            Node n1 = nodeFactory.createNode(suffixFromKey, value, Collections.<Node>emptyList(), false);
+            Node n2 = nodeFactory.createNode(suffixFromExistingEdge, searchResult.nodeFound.getValue(), searchResult.nodeFound.getOutgoingEdges(), false);
+            @SuppressWarnings({"NullableProblems"})
+            Node n3 = nodeFactory.createNode(commonPrefix, null, Arrays.asList(n1, n2), false);
+
+            
+            if(!searchResult.parentNode.updateOutgoingEdge(searchResult.nodeFound, n3)){
+            	/*if(!searchResult.nodeFound.compareAndSetPartialWork(pair, null, true, false)) // unset partial work
+                	continue;
+            	unmarkPath(searchResult);
+            	continue;*/
+            	return false;
+            }
+
+            // Return null for the existing value...
+            
+            searchResult.parentNode.unsetPartialWork();
+            return true;
+        }
+        default: {
+            // This is a safeguard against a new enum constant being added in future.
+            throw new IllegalStateException("Unexpected classification for search result: " + searchResult);
+        }
+        
+		}
+    	
+		
+	}
+    
+	
+	private boolean finishDeletion(Operation operation) {
 		// TODO Auto-generated method stub
     	
     	return false;
     		
 	}
-    
 
 	
 
@@ -1158,7 +1324,7 @@ public class ConcurrentRadixTree<O> implements RadixTree<O>, PrettyPrintable {
      * Also classifies the search result so that algorithms in methods which use this SearchResult, when adding nodes
      * and removing nodes from the tree, can select appropriate strategies based on the classification.
      */
-    static class SearchResult {
+    public static class SearchResult {
         final CharSequence key;
         Node nodeFound;
         final int charsMatched;

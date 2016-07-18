@@ -108,7 +108,14 @@ public class CharArrayNodeNonLeafNullValue implements Node {
         // Binary search for the index of the node whose edge starts with the given character.
         // Note that this binary search is safe in the face of concurrent modification due to constraints
         // we enforce on use of the array, as documented in the binarySearchForEdge method...
-        int index = NodeUtil.binarySearchForEdge(outgoingEdges, childNode.getIncomingEdgeFirstCharacter());
+    	Character ch = null;
+    	try{
+    		ch = childNode.getIncomingEdgeFirstCharacter();
+    	}catch(Exception e){
+    		System.out.println(e.toString());
+    		return false;
+    	}
+        int index = NodeUtil.binarySearchForEdge(outgoingEdges, ch);
         if (index < 0) {
             throw new IllegalStateException("Cannot update the reference to the following child node for the edge starting with '" + childNode.getIncomingEdgeFirstCharacter() +"', no such edge already exists: " + childNode);
         }
